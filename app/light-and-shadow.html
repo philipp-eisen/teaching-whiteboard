@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Light and Shadow</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            min-height: 100vh;
+            background-color: #f0f0f0;
+        }
+
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        h1 {
+            margin-top: 0;
+            color: #333;
+        }
+
+        p {
+            color: #555;
+            margin-bottom: 15px;
+        }
+
+        svg {
+            border: 1px solid #ccc;
+            background-color: #eef8ff;
+            /* Light sky blue background */
+            overflow: visible;
+            /* Allow elements like shadow to potentially extend slightly */
+            margin-bottom: 20px;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 10px 15px;
+            /* Row gap, Column gap */
+            align-items: center;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .controls label {
+            text-align: right;
+            font-size: 0.9em;
+            color: #444;
+        }
+
+        .controls input[type="range"] {
+            width: 100%;
+            cursor: pointer;
+        }
+
+        .controls span {
+            text-align: left;
+            font-size: 0.9em;
+            font-family: monospace;
+            min-width: 30px;
+            /* Ensure space for values */
+        }
+
+        /* SVG Element Styles */
+        #light-source {
+            fill: #ffee00;
+            /* Bright yellow */
+            stroke: #fdb81e;
+            /* Orange stroke */
+            stroke-width: 1;
+        }
+
+        #object {
+            fill: #0077cc;
+            /* Blue */
+            stroke: #00508a;
+            /* Darker blue stroke */
+            stroke-width: 1;
+        }
+
+        #ground {
+            stroke: #888888;
+            /* Grey */
+            stroke-width: 2;
+        }
+
+        .light-ray {
+            stroke: #ffcc00;
+            /* Lighter yellow */
+            stroke-width: 1.5;
+            stroke-dasharray: 4 2;
+            /* Dashed line */
+        }
+
+        #shadow {
+            fill: #404040;
+            /* Dark grey */
+            opacity: 0.75;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>Light Travels in Straight Lines & Shadows</h1>
+        <p>Move the light source and the object using the sliders below to see how the shadow changes. Notice how the
+            light rays (dashed lines) always travel straight!</p>
+
+        <svg id="animation-svg" width="500" height="350" viewBox="0 0 500 350">
+            <!-- Ground Line -->
+            <line id="ground" x1="0" y1="300" x2="500" y2="300" />
+
+            <!-- Shadow (drawn first so it's behind object) -->
+            <polygon id="shadow" points="200,300 300,300" />
+
+            <!-- Light Rays -->
+            <line id="ray1" class="light-ray" x1="100" y1="50" x2="200" y2="300" />
+            <line id="ray2" class="light-ray" x1="100" y1="50" x2="300" y2="300" />
+
+            <!-- Object -->
+            <rect id="object" x="225" y="250" width="50" height="50" />
+
+            <!-- Light Source -->
+            <circle id="light-source" cx="100" cy="50" r="15" />
+        </svg>
+
+        <div class="controls">
+            <label for="lightX">Light X:</label>
+            <input type="range" id="lightX" min="0" max="500" value="100">
+            <span id="lightXValue">100</span>
+
+            <label for="lightY">Light Y:</label>
+            <input type="range" id="lightY" min="10" max="230" value="50"> <!-- Max Y avoids going below object top -->
+            <span id="lightYValue">50</span>
+
+            <label for="objectX">Object X:</label>
+            <input type="range" id="objectX" min="0" max="450" value="225">
+            <!-- Max X avoids object going off screen -->
+            <span id="objectXValue">225</span>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        const svg = document.getElementById('animation-svg');
+        const lightSource = document.getElementById('light-source');
+        const object = document.getElementById('object');
+        const ground = document.getElementById('ground');
+        const ray1 = document.getElementById('ray1');
+        const ray2 = document.getElementById('ray2');
+        const shadow = document.getElementById('shadow');
+
+        const lightXSlider = document.getElementById('lightX');
+        const lightYSlider = document.getElementById('lightY');
+        const objectXSlider = document.getElementById('objectX');
+        const lightXValueSpan = document.getElementById('lightXValue');
+        const lightYValueSpan = document.getElementById('lightYValue');
+        const objectXValueSpan = document.getElementById('objectXValue');
+
+        // --- Constants ---
+        const groundY = parseFloat(ground.getAttribute('y1'));
+        const objectWidth = parseFloat(object.getAttribute('width'));
+        const objectHeight = parseFloat(object.getAttribute('height'));
+        const objectBaseY = parseFloat(object.getAttribute('y')); // This is the top Y
+        const objectTopY = objectBaseY;
+        const objectBottomY = objectBaseY + objectHeight; // This is actually the bottom Y coord
+
+        // --- Helper Function: Calculate line intersection with horizontal ground ---
+        function getIntersectionX(p1x, p1y, p2x, p2y, targetY) {
+            // Avoid division by zero if line is horizontal and not at targetY
+            if (p2y === p1y) {
+                return p1y === targetY ? p1x : Infinity; // Or some indicator of no intersection
+            }
+            // Avoid division by zero if line is vertical
+            if (p2x === p1x) {
+                return p1x; // Vertical line intersects all horizontal lines at its X coord
+            }
+
+            // Calculate slope (m)
+            const m = (p2y - p1y) / (p2x - p1x);
+            // Calculate x-intercept (b) is not needed directly
+            // Formula: y = m(x - x1) + y1  => targetY = m(x - p1x) + p1y
+            // targetY - p1y = m(x - p1x)
+            // (targetY - p1y) / m = x - p1x
+            // x = p1x + (targetY - p1y) / m
+            const intersectX = p1x + (targetY - p1y) / m;
+            return intersectX;
+        }
+
+        // --- Update Function ---
+        function updateAnimation() {
+            // 1. Get current values from sliders
+            const lightX = parseFloat(lightXSlider.value);
+            const lightY = parseFloat(lightYSlider.value);
+            const objectX = parseFloat(objectXSlider.value);
+
+            // Update displayed values
+            lightXValueSpan.textContent = lightX.toFixed(0);
+            lightYValueSpan.textContent = lightY.toFixed(0);
+            objectXValueSpan.textContent = objectX.toFixed(0);
+
+            // 2. Update element positions
+            lightSource.setAttribute('cx', lightX);
+            lightSource.setAttribute('cy', lightY);
+            object.setAttribute('x', objectX);
+            // Object's Y is fixed in this example, derived from objectBaseY
+
+            // 3. Calculate object corners relevant for shadow (top corners)
+            const objectTopLeftX = objectX;
+            const objectTopRightX = objectX + objectWidth;
+            const objectActualTopY = objectTopY; // Use the constant top Y
+
+            // Make sure light is above the object for simple shadow calc
+            if (lightY >= objectActualTopY) {
+                // If light is below or level with the object top, shadow calculation breaks down
+                // In a real scenario, it would cast upwards or no shadow on the ground.
+                // For simplicity, we'll just hide the shadow and rays if light is too low.
+                ray1.style.display = 'none';
+                ray2.style.display = 'none';
+                shadow.style.display = 'none';
+                return; // Stop further calculations
+            } else {
+                // Restore visibility if light moves back up
+                ray1.style.display = '';
+                ray2.style.display = '';
+                shadow.style.display = '';
+            }
+
+
+            // 4. Calculate intersection points on the ground
+            const shadowPoint1X = getIntersectionX(lightX, lightY, objectTopLeftX, objectActualTopY, groundY);
+            const shadowPoint2X = getIntersectionX(lightX, lightY, objectTopRightX, objectActualTopY, groundY);
+
+            // Clamp intersection points to SVG boundaries for tidiness
+            const svgWidth = svg.viewBox.baseVal.width;
+            const clampedShadowPoint1X = Math.max(0, Math.min(svgWidth, shadowPoint1X));
+            const clampedShadowPoint2X = Math.max(0, Math.min(svgWidth, shadowPoint2X));
+
+            // 5. Update light rays
+            // Ray 1: Light source to Object's Top-Left edge, extending to ground intersection
+            ray1.setAttribute('x1', lightX);
+            ray1.setAttribute('y1', lightY);
+            ray1.setAttribute('x2', clampedShadowPoint1X); // Ray visually goes *through* object edge to ground
+            ray1.setAttribute('y2', groundY);
+
+            // Ray 2: Light source to Object's Top-Right edge, extending to ground intersection
+            ray2.setAttribute('x1', lightX);
+            ray2.setAttribute('y1', lightY);
+            ray2.setAttribute('x2', clampedShadowPoint2X); // Ray visually goes *through* object edge to ground
+            ray2.setAttribute('y2', groundY);
+
+            // 6. Update shadow polygon
+            // The shadow polygon needs points in clockwise or counter-clockwise order.
+            // The base of the shadow is on the ground between the two intersection points.
+            // Note: If light is directly above center, shadowPoint1X > shadowPoint2X. We need min/max.
+            const shadowBaseX1 = Math.min(clampedShadowPoint1X, clampedShadowPoint2X);
+            const shadowBaseX2 = Math.max(clampedShadowPoint1X, clampedShadowPoint2X);
+
+            // Define the polygon points for the shadow on the ground
+            const shadowPoints = `${shadowBaseX1},${groundY} ${shadowBaseX2},${groundY}`;
+            // Check if shadow has valid width before drawing
+            if (shadowBaseX1 < shadowBaseX2 && isFinite(shadowBaseX1) && isFinite(shadowBaseX2)) {
+                shadow.setAttribute('points', shadowPoints);
+                // Making the shadow a filled polygon makes more sense visually on the ground
+                // For a trapezoid shape including the object base projection:
+                // const shadowPoints = `${objectX},${objectBottomY} ${objectX + objectWidth},${objectBottomY} ${shadowBaseX2},${groundY} ${shadowBaseX1},${groundY}`;
+                // But a simple line/polygon on the ground is often clearer for this concept.
+                // Let's make it a thin rectangle on the ground for better visibility than just a line:
+                const shadowHeight = 4; // Make shadow slightly thick for visibility
+                const filledShadowPoints = `${shadowBaseX1},${groundY} ${shadowBaseX2},${groundY} ${shadowBaseX2},${groundY + shadowHeight} ${shadowBaseX1},${groundY + shadowHeight}`;
+                shadow.setAttribute('points', filledShadowPoints);
+                shadow.style.display = ''; // Ensure it's visible
+            } else {
+                // Hide shadow if points are invalid (e.g., light directly above one edge)
+                shadow.style.display = 'none';
+            }
+        }
+
+        // --- Event Listeners ---
+        lightXSlider.addEventListener('input', updateAnimation);
+        lightYSlider.addEventListener('input', updateAnimation);
+        objectXSlider.addEventListener('input', updateAnimation);
+
+        // --- Initial Draw ---
+        updateAnimation();
+
+    </script>
+
+</body>
+
+</html>

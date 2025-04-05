@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>States of Matter - Particle Animation</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f0f0f0;
+            flex-direction: column;
+            /* Stack elements vertically */
+        }
+
+        .container {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        p {
+            color: #555;
+            margin-bottom: 20px;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        canvas {
+            border: 1px solid #ccc;
+            background-color: #e9f5ff;
+            /* Light blue background */
+            display: block;
+            /* Remove extra space below canvas */
+            margin: 0 auto 20px auto;
+            /* Center canvas and add margin below */
+        }
+
+        .controls {
+            margin-top: 15px;
+        }
+
+        label {
+            margin-right: 10px;
+            font-weight: bold;
+            color: #444;
+        }
+
+        input[type="range"] {
+            width: 200px;
+            cursor: pointer;
+        }
+
+        #stateName {
+            display: inline-block;
+            /* Allows setting width/padding */
+            margin-left: 15px;
+            font-weight: bold;
+            font-size: 1.2em;
+            padding: 5px 10px;
+            border-radius: 5px;
+            min-width: 60px;
+            /* Ensure consistent width */
+            text-align: center;
+        }
+
+        /* State-specific styling for the indicator */
+        .solid {
+            background-color: #add8e6;
+            color: #00008b;
+        }
+
+        /* Light Blue / Dark Blue */
+        .liquid {
+            background-color: #90ee90;
+            color: #006400;
+        }
+
+        /* Light Green / Dark Green */
+        .gas {
+            background-color: #ffcccb;
+            color: #a52a2a;
+        }
+
+        /* Light Red / Brown */
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>Solid, Liquid, Gas</h1>
+        <p>
+            Matter is made of tiny particles (like atoms or molecules). How these particles move determines if something
+            is a solid, liquid, or gas. Add heat to see how they change!
+        </p>
+
+        <canvas id="particleCanvas" width="500" height="350"></canvas>
+
+        <div class="controls">
+            <label for="heatSlider">Heat Level:</label>
+            <input type="range" id="heatSlider" min="0" max="100" value="10">
+            <span>State: <span id="stateName" class="solid">Solid</span></span>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('particleCanvas');
+        const ctx = canvas.getContext('2d');
+        const heatSlider = document.getElementById('heatSlider');
+        const stateNameSpan = document.getElementById('stateName');
+
+        const width = canvas.width;
+        const height = canvas.height;
+
+        // --- Simulation Parameters ---
+        const numParticles = 80;
+        const particleRadius = 6;
+        const particleColor = '#3498db'; // Blue particles
+
+        // State thresholds based on slider value (0-100)
+        const solidMax = 35;
+        const liquidMax = 75;
+
+        // Movement factors (adjust for desired visual speed/jiggle)
+        const solidJiggle = 0.3;
+        const liquidMove = 1.5;
+        const gasMove = 4.0;
+        const wallDamping = 0.85; // Energy loss on wall bounce
+        const attractionForceFactor = 0.005; // How strongly particles pull back to lattice in solid state
+        const repulsionForceFactor = 0.5; // How strongly particles push each other apart
+
+        let particles = [];
+
+        // --- Particle Class/Object ---
+        class Particle {
+            constructor(x, y, originalX, originalY) {
+                this.x = x;
+                this.y = y;
+                this.originalX = originalX; // For solid state lattice
+                this.originalY = originalY; // For solid state lattice
+                this.vx = (Math.random() - 0.5) * 0.5; // Initial small velocity
+                this.vy = (Math.random() - 0.5) * 0.5;
+                this.radius = particleRadius;
+                this.color = particleColor;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+            }
+
+            update(state, heatLevel) {
+                let targetVX = this.vx;
+                let targetVY = this.vy;
+
+                // Calculate forces/movement based on state
+                if (state === 'solid') {
+                    // Attract back towards original position
+                    const dx = this.originalX - this.x;
+                    const dy = this.originalY - this.y;
+                    targetVX += dx * attractionForceFactor * (heatLevel / solidMax + 0.1); // Stronger pull at lower temp
+                    targetVY += dy * attractionForceFactor * (heatLevel / solidMax + 0.1);
+
+                    // Add jiggle (increases with heat within solid range)
+                    targetVX += (Math.random() - 0.5) * solidJiggle * (heatLevel / solidMax + 0.1);
+                    targetVY += (Math.random() - 0.5) * solidJiggle * (heatLevel / solidMax + 0.1);
+
+                    // Apply damping to prevent excessive buildup
+                    targetVX *= 0.9;
+                    targetVY *= 0.9;
+
+                } else if (state === 'liquid') {
+                    // Random movement (increases with heat within liquid range)
+                    const moveScale = liquidMove * ((heatLevel - solidMax) / (liquidMax - solidMax) + 0.5);
+                    targetVX += (Math.random() - 0.5) * moveScale;
+                    targetVY += (Math.random() - 0.5) * moveScale;
+
+                    // Limit max speed slightly
+                    targetVX = Math.max(-liquidMove, Math.min(liquidMove, targetVX));
+                    targetVY = Math.max(-liquidMove, Math.min(liquidMove, targetVY));
+
+
+                } else { // Gas
+                    // Faster random movement (increases with heat in gas range)
+                    const moveScale = gasMove * ((heatLevel - liquidMax) / (100 - liquidMax) + 0.5);
+                    targetVX += (Math.random() - 0.5) * moveScale;
+                    targetVY += (Math.random() - 0.5) * moveScale;
+
+                    // Limit max speed slightly more aggressively for visual stability
+                    targetVX = Math.max(-gasMove * 1.5, Math.min(gasMove * 1.5, targetVX));
+                    targetVY = Math.max(-gasMove * 1.5, Math.min(gasMove * 1.5, targetVY));
+                }
+
+
+                // Basic Particle Repulsion (Simplified) - applied in all states but more relevant in solid/liquid
+                for (let other of particles) {
+                    if (other === this) continue;
+                    const dx = this.x - other.x;
+                    const dy = this.y - other.y;
+                    const distSq = dx * dx + dy * dy;
+                    const minDist = this.radius + other.radius;
+                    const minDistSq = minDist * minDist;
+
+                    if (distSq < minDistSq && distSq > 0.01) { // Avoid division by zero
+                        const dist = Math.sqrt(distSq);
+                        const overlap = minDist - dist;
+                        const pushX = (dx / dist) * repulsionForceFactor * (overlap / minDist); // Push away proportionally to overlap
+                        const pushY = (dy / dist) * repulsionForceFactor * (overlap / minDist);
+                        targetVX += pushX;
+                        targetVY += pushY;
+                        // Slightly push the other particle too (optional, simplifies if only `this` is pushed)
+                        // other.vx -= pushX * 0.5;
+                        // other.vy -= pushY * 0.5;
+                    }
+                }
+
+
+                this.vx = targetVX;
+                this.vy = targetVY;
+
+
+                // Update position
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Boundary collision detection
+                if (this.x - this.radius < 0) {
+                    this.x = this.radius;
+                    this.vx *= -wallDamping;
+                } else if (this.x + this.radius > width) {
+                    this.x = width - this.radius;
+                    this.vx *= -wallDamping;
+                }
+                if (this.y - this.radius < 0) {
+                    this.y = this.radius;
+                    this.vy *= -wallDamping;
+                } else if (this.y + this.radius > height) {
+                    this.y = height - this.radius;
+                    this.vy *= -wallDamping;
+                }
+            }
+        }
+
+        // --- Initialization ---
+        function initParticles() {
+            particles = [];
+            const particlesPerRow = Math.ceil(Math.sqrt(numParticles));
+            const spacingX = width / (particlesPerRow + 1) * 0.6; // Arrange closer for solid look
+            const spacingY = height / (particlesPerRow + 1) * 0.6;
+            const offsetX = (width - (particlesPerRow - 1) * spacingX) / 2;
+            const offsetY = (height - (particlesPerRow - 1) * spacingY) / 2 * 0.8; // Start lower
+
+            let count = 0;
+            for (let i = 0; i < particlesPerRow && count < numParticles; i++) {
+                for (let j = 0; j < particlesPerRow && count < numParticles; j++) {
+                    const x = offsetX + j * spacingX;
+                    const y = offsetY + i * spacingY;
+                    particles.push(new Particle(x, y, x, y));
+                    count++;
+                }
+            }
+        }
+
+        // --- Animation Loop ---
+        function animate() {
+            ctx.clearRect(0, 0, width, height); // Clear canvas
+
+            const heatLevel = parseInt(heatSlider.value);
+            let currentState = 'solid';
+            let stateClass = 'solid';
+
+            if (heatLevel > liquidMax) {
+                currentState = 'gas';
+                stateClass = 'gas';
+            } else if (heatLevel > solidMax) {
+                currentState = 'liquid';
+                stateClass = 'liquid';
+            }
+            // Update state display
+            stateNameSpan.textContent = currentState.charAt(0).toUpperCase() + currentState.slice(1); // Capitalize
+            stateNameSpan.className = stateClass; // Apply CSS class for color
+
+
+            // Update and draw each particle
+            particles.forEach(p => {
+                p.update(currentState, heatLevel);
+                p.draw();
+            });
+
+            requestAnimationFrame(animate); // Loop animation
+        }
+
+        // --- Event Listener ---
+        heatSlider.addEventListener('input', () => {
+            // No need to do anything here directly, the animate loop reads the value
+            // This just ensures the loop continues getting the latest value
+        });
+
+        // --- Start ---
+        initParticles();
+        animate();
+
+    </script>
+
+</body>
+
+</html>

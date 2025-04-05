@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Projectile Motion</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background-color: #f0f8ff;
+            /* Light sky blue */
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            /* Allow wrapping on smaller screens */
+            justify-content: center;
+            align-items: flex-start;
+            gap: 30px;
+            width: 100%;
+            max-width: 900px;
+            /* Limit overall width */
+        }
+
+        .controls {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            min-width: 250px;
+            /* Ensure controls don't get too squished */
+        }
+
+        .controls label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .controls input[type="range"] {
+            width: 100%;
+            cursor: pointer;
+        }
+
+        .controls button {
+            padding: 10px 15px;
+            font-size: 1em;
+            background-color: #4CAF50;
+            /* Green */
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .controls button:hover {
+            background-color: #45a049;
+        }
+
+        .controls .value-display {
+            font-weight: normal;
+            color: #0077cc;
+        }
+
+        canvas {
+            border: 1px solid #ccc;
+            background-color: #e0f0ff;
+            /* Lighter blue for sky */
+            display: block;
+            /* Remove extra space below canvas */
+        }
+
+        .explanation {
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+            /* Space above explanation */
+            width: 100%;
+            max-width: 600px;
+            /* Match canvas width */
+            text-align: center;
+        }
+
+        .explanation p {
+            margin: 5px 0;
+            line-height: 1.4;
+            color: #333;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Why Things Follow Curved Paths</h1>
+
+    <div class="container">
+        <div class="controls">
+            <h2>Try it Out!</h2>
+            <div>
+                <label for="angleSlider">Launch Angle: <span id="angleValue" class="value-display">45</span>°</label>
+                <input type="range" id="angleSlider" min="1" max="89" value="45">
+            </div>
+            <div>
+                <label for="speedSlider">Initial Speed: <span id="speedValue" class="value-display">15</span></label>
+                <input type="range" id="speedSlider" min="5" max="25" value="15">
+            </div>
+            <button id="launchButton">Launch!</button>
+            <p style="font-size: 0.9em; color: #666; margin-top: 10px;">Adjust the sliders and click Launch! See how the
+                angle and speed change the ball's path.</p>
+        </div>
+
+        <canvas id="projectileCanvas" width="600" height="400"></canvas>
+    </div>
+
+    <div class="explanation">
+        <p>When you throw a ball, it doesn't go straight forever.</p>
+        <p><strong>Gravity</strong> constantly pulls it downwards.</p>
+        <p>This mix of moving forward (from the launch) and being pulled down (by gravity) makes the ball follow a
+            <strong>curved path</strong>, called a trajectory.</p>
+    </div>
+
+
+    <script>
+        const canvas = document.getElementById('projectileCanvas');
+        const ctx = canvas.getContext('2d');
+        const angleSlider = document.getElementById('angleSlider');
+        const speedSlider = document.getElementById('speedSlider');
+        const angleValueSpan = document.getElementById('angleValue');
+        const speedValueSpan = document.getElementById('speedValue');
+        const launchButton = document.getElementById('launchButton');
+
+        // Simulation Constants
+        const gravity = 0.15; // Acceleration due to gravity (pixels per frame^2) - Lower value = less gravity
+        const groundHeight = 30; // Height of the ground area
+        const startX = 50;     // Starting X position of the projectile
+        const startY = canvas.height - groundHeight; // Starting Y position (on the ground)
+        const projectileRadius = 8;
+        const projectileColor = '#FF0000'; // Red
+        const pathColor = '#0000FF'; // Blue
+        const groundColor = '#8B4513'; // Brown
+        const launcherColor = '#555555'; // Dark Grey
+
+        // Simulation State Variables
+        let angle = parseInt(angleSlider.value); // degrees
+        let speed = parseInt(speedSlider.value);
+        let posX = startX;
+        let posY = startY;
+        let velocityX = 0;
+        let velocityY = 0;
+        let isFlying = false;
+        let path = []; // Stores points {x, y} of the trajectory
+        let animationFrameId = null;
+
+        // --- Drawing Functions ---
+
+        function drawGround() {
+            ctx.fillStyle = groundColor;
+            ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
+        }
+
+        function drawProjectile() {
+            if (!isFlying && path.length === 0) return; // Don't draw if not launched yet or reset
+
+            // Draw current projectile position
+            ctx.beginPath();
+            ctx.arc(posX, posY, projectileRadius, 0, Math.PI * 2);
+            ctx.fillStyle = projectileColor;
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        function drawPath() {
+            if (path.length < 2) return;
+
+            ctx.beginPath();
+            ctx.moveTo(path[0].x, path[0].y);
+            ctx.strokeStyle = pathColor;
+            ctx.lineWidth = 2;
+            ctx.setLineDash([2, 3]); // Dashed line for path
+
+            for (let i = 1; i < path.length; i++) {
+                ctx.lineTo(path[i].x, path[i].y);
+            }
+            ctx.stroke();
+            ctx.setLineDash([]); // Reset line dash
+            ctx.lineWidth = 1; // Reset line width
+        }
+
+        function drawLauncherIndicator() {
+            // Draw a line indicating the launch angle
+            const angleRad = angle * Math.PI / 180;
+            const indicatorLength = 40;
+            const endX = startX + indicatorLength * Math.cos(angleRad);
+            // Canvas Y is inverted, so subtract sin
+            const endY = startY - indicatorLength * Math.sin(angleRad);
+
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(endX, endY);
+            ctx.strokeStyle = launcherColor;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            ctx.lineWidth = 1; // Reset line width
+        }
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function drawScene() {
+            clearCanvas();
+            drawGround();
+            drawLauncherIndicator(); // Show angle indicator always
+            drawPath(); // Draw the path taken so far (or previous path if not flying)
+            drawProjectile(); // Draw the projectile if flying or at the end point
+        }
+
+        // --- Simulation Logic ---
+
+        function update() {
+            if (!isFlying) return;
+
+            // Apply gravity to vertical velocity
+            velocityY += gravity;
+
+            // Update position based on velocity
+            posX += velocityX;
+            posY += velocityY;
+
+            // Add current position to path history (only add if moved significantly to avoid dense points)
+            if (path.length === 0 || Math.abs(posX - path[path.length - 1].x) > 1 || Math.abs(posY - path[path.length - 1].y) > 1) {
+                path.push({ x: posX, y: posY });
+            }
+
+
+            // Check for collision with ground
+            if (posY + projectileRadius >= canvas.height - groundHeight) {
+                posY = canvas.height - groundHeight - projectileRadius; // Place it exactly on ground
+                isFlying = false; // Stop the animation
+                console.log("Hit ground!");
+                if (animationFrameId) {
+                    cancelAnimationFrame(animationFrameId);
+                    animationFrameId = null;
+                }
+            }
+
+            // Check if it went off screen horizontally (optional)
+            if (posX - projectileRadius > canvas.width || posX + projectileRadius < 0) {
+                isFlying = false;
+                console.log("Off screen horizontally!");
+                if (animationFrameId) {
+                    cancelAnimationFrame(animationFrameId);
+                    animationFrameId = null;
+                }
+            }
+        }
+
+        function animationLoop() {
+            update();
+            drawScene();
+
+            if (isFlying) {
+                animationFrameId = requestAnimationFrame(animationLoop);
+            } else {
+                // Keep drawing the final scene once stopped
+                drawScene();
+            }
+        }
+
+        function launch() {
+            // Stop any existing animation
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+
+            // Reset state
+            isFlying = true;
+            posX = startX;
+            posY = startY;
+            path = [{ x: startX, y: startY }]; // Start path from launch point
+
+            // Calculate initial velocities based on angle and speed
+            // Angle needs to be in radians, and Y velocity is negative because canvas Y increases downwards
+            const angleRad = angle * Math.PI / 180;
+            velocityX = speed * Math.cos(angleRad);
+            velocityY = -speed * Math.sin(angleRad); // Negative for upward initial motion in canvas coords
+
+            console.log(`Launching: Angle=${angle}°, Speed=${speed}, vx=${velocityX.toFixed(2)}, vy=${velocityY.toFixed(2)}`);
+
+
+            // Start the animation loop
+            animationFrameId = requestAnimationFrame(animationLoop);
+        }
+
+        // --- Event Listeners ---
+
+        angleSlider.addEventListener('input', (e) => {
+            angle = parseInt(e.target.value);
+            angleValueSpan.textContent = angle;
+            if (!isFlying) { // Only redraw indicator if not currently flying
+                drawScene(); // Update the launcher indicator immediately
+            }
+        });
+
+        speedSlider.addEventListener('input', (e) => {
+            speed = parseInt(e.target.value);
+            speedValueSpan.textContent = speed;
+            // No visual update needed until launch, but could add a preview later
+        });
+
+        launchButton.addEventListener('click', () => {
+            // If it's already flying, clicking again should reset and maybe launch immediately
+            // For simplicity now, just ensure it resets before launching
+            if (isFlying) {
+                isFlying = false; // Stop current flight visually if any part of update/draw is async
+            }
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+            // Reset path visually before new launch
+            path = [];
+            drawScene(); // Draw clean scene before launch
+            setTimeout(launch, 50); // Small delay to ensure canvas redraws before starting calculations
+        });
+
+        // --- Initial Draw ---
+        drawScene(); // Draw the initial static scene (ground, launcher indicator)
+
+    </script>
+
+</body>
+
+</html>

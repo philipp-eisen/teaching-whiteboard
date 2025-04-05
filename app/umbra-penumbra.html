@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Umbra and Penumbra Explained</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+
+        #animation-container {
+            width: 90%;
+            max-width: 800px;
+            height: 400px;
+            /* Adjusted height */
+            border: 1px solid #ccc;
+            background-color: #000020;
+            /* Dark space background */
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        #eclipse-svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .celestial-body {
+            stroke: none;
+        }
+
+        #sun {
+            fill: #FFD700;
+        }
+
+        #moon {
+            fill: #AAAAAA;
+        }
+
+        #earth {
+            fill: #4682B4;
+        }
+
+        /* Blue for Earth */
+
+        .shadow {
+            fill-opacity: 0.7;
+        }
+
+        #umbra {
+            fill: #333333;
+        }
+
+        #penumbra {
+            fill: #666666;
+        }
+
+        .light-ray {
+            stroke: rgba(255, 255, 0, 0.4);
+            /* Dim yellow */
+            stroke-width: 0.5;
+            stroke-dasharray: 3, 3;
+        }
+
+        .shadow-defining-ray {
+            stroke: rgba(255, 255, 255, 0.6);
+            /* White dashed */
+            stroke-width: 1;
+            stroke-dasharray: 5, 5;
+        }
+
+        .label {
+            font-size: 12px;
+            fill: #ffffff;
+            text-anchor: middle;
+            pointer-events: none;
+            /* Labels don't block interaction */
+        }
+
+        #controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #e0e0e0;
+            border-radius: 5px;
+        }
+
+        #controls label {
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        #moonDistance {
+            width: 300px;
+        }
+
+        #explanation {
+            margin-top: 20px;
+            max-width: 700px;
+            text-align: left;
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+
+        #explanation h2 {
+            margin-top: 0;
+            text-align: center;
+        }
+
+        #explanation strong {
+            color: #0056b3;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Umbra and Penumbra: The Moon's Shadow</h1>
+
+    <div id="animation-container">
+        <svg id="eclipse-svg" viewBox="0 0 800 400">
+            <!-- Celestial Bodies -->
+            <circle id="sun" class="celestial-body" cx="100" cy="200" r="50"></circle>
+            <circle id="moon" class="celestial-body" cx="400" cy="200" r="15"></circle>
+            <circle id="earth" class="celestial-body" cx="700" cy="200" r="40"></circle>
+
+            <!-- Shadow Regions (calculated by JS) -->
+            <polygon id="penumbra" class="shadow"></polygon>
+            <polygon id="umbra" class="shadow"></polygon>
+
+            <!-- Defining Light Rays (calculated by JS) -->
+            <line id="ray_umbra_top" class="shadow-defining-ray"></line>
+            <line id="ray_umbra_bottom" class="shadow-defining-ray"></line>
+            <line id="ray_penumbra_top" class="shadow-defining-ray"></line>
+            <line id="ray_penumbra_bottom" class="shadow-defining-ray"></line>
+
+            <!-- Labels (positions updated by JS) -->
+            <text id="sun-label" class="label" x="100" y="140">Sun</text>
+            <text id="moon-label" class="label" x="400" y="175">Moon</text>
+            <text id="earth-label" class="label" x="700" y="150">Earth</text>
+            <text id="umbra-label" class="label" x="550" y="215">Umbra</text>
+            <text id="penumbra-label" class="label" x="550" y="245">Penumbra</text>
+        </svg>
+    </div>
+
+    <div id="controls">
+        <label for="moonDistance">Adjust Moon's Distance from Earth:</label>
+        <input type="range" id="moonDistance" min="200" max="450" value="300" step="1">
+        <span id="distanceValue">Closer ----- Further</span>
+    </div>
+
+    <div id="explanation">
+        <h2>How Shadows Work in Space</h2>
+        <p>This animation shows how the Moon casts a shadow on the Earth when it passes between the Sun and Earth (a
+            solar eclipse).</p>
+        <ul>
+            <li>The <strong>Sun</strong> is the light source.</li>
+            <li>The <strong>Moon</strong> blocks the sunlight.</li>
+            <li>The <strong>Earth</strong> is where the shadow falls.</li>
+        </ul>
+        <p>Because the Sun isn't just a tiny point of light, the shadow has two parts:</p>
+        <ul>
+            <li><strong>Umbra:</strong> The darkest, central part of the shadow. If you are standing in the umbra on
+                Earth, the Sun is completely blocked by the Moon. This causes a total solar eclipse.</li>
+            <li><strong>Penumbra:</strong> The lighter, outer part of the shadow. If you are standing in the penumbra,
+                the Sun is only partially blocked by the Moon. This causes a partial solar eclipse.</li>
+        </ul>
+        <p><strong>Try the slider!</strong> Notice how changing the Moon's distance affects the size of the umbra and
+            penumbra reaching Earth. When the Moon is farther away, the umbra shadow cone is shorter and might not even
+            reach Earth (or it appears smaller).</p>
+    </div>
+
+    <script>
+        const svg = document.getElementById('eclipse-svg');
+        const sun = document.getElementById('sun');
+        const moon = document.getElementById('moon');
+        const earth = document.getElementById('earth');
+        const umbra = document.getElementById('umbra');
+        const penumbra = document.getElementById('penumbra');
+        const rayUmbraTop = document.getElementById('ray_umbra_top');
+        const rayUmbraBottom = document.getElementById('ray_umbra_bottom');
+        const rayPenumbraTop = document.getElementById('ray_penumbra_top');
+        const rayPenumbraBottom = document.getElementById('ray_penumbra_bottom');
+
+        const moonLabel = document.getElementById('moon-label');
+        const umbraLabel = document.getElementById('umbra-label');
+        const penumbraLabel = document.getElementById('penumbra-label');
+
+        const slider = document.getElementById('moonDistance');
+
+        const SVG_WIDTH = 800;
+        const SVG_HEIGHT = 400;
+
+        // Fixed positions/radii (could be dynamic based on SVG size)
+        const sunPos = { x: 100, y: SVG_HEIGHT / 2, r: 50 };
+        const earthPos = { x: 700, y: SVG_HEIGHT / 2, r: 40 };
+        const moonRadius = 15;
+
+        function calculateShadows(moonX) {
+            const moonPos = { x: moonX, y: SVG_HEIGHT / 2, r: moonRadius };
+
+            // Update Moon's visual position
+            moon.setAttribute('cx', moonPos.x);
+            moon.setAttribute('cy', moonPos.y);
+            moon.setAttribute('r', moonPos.r);
+
+            // Calculate tangent points (simplified 2D geometry)
+            // Top tangent points
+            const sunTop = { x: sunPos.x, y: sunPos.y - sunPos.r };
+            const moonTop = { x: moonPos.x, y: moonPos.y - moonPos.r };
+            // Bottom tangent points
+            const sunBottom = { x: sunPos.x, y: sunPos.y + sunPos.r };
+            const moonBottom = { x: moonPos.x, y: moonPos.y + moonPos.r };
+
+            // --- Umbra Calculation (Outer tangents cross) ---
+            // Line from Sun Top to Moon Top
+            const umbraLineTop = { x1: sunTop.x, y1: sunTop.y, x2: moonTop.x, y2: moonTop.y };
+            // Line from Sun Bottom to Moon Bottom
+            const umbraLineBottom = { x1: sunBottom.x, y1: sunBottom.y, x2: moonBottom.x, y2: moonBottom.y };
+
+            // Extend umbra lines to the edge of the SVG or Earth
+            const umbraEndPointTop = extendLine(umbraLineTop.x1, umbraLineTop.y1, umbraLineTop.x2, umbraLineTop.y2, SVG_WIDTH);
+            const umbraEndPointBottom = extendLine(umbraLineBottom.x1, umbraLineBottom.y1, umbraLineBottom.x2, umbraLineBottom.y2, SVG_WIDTH);
+
+            // Draw Umbra Polygon
+            umbra.setAttribute('points', `${moonTop.x},${moonTop.y} ${umbraEndPointTop.x},${umbraEndPointTop.y} ${umbraEndPointBottom.x},${umbraEndPointBottom.y} ${moonBottom.x},${moonBottom.y}`);
+
+            // --- Penumbra Calculation (Inner tangents cross) ---
+            // Line from Sun Top to Moon Bottom
+            const penumbraLineTop = { x1: sunTop.x, y1: sunTop.y, x2: moonBottom.x, y2: moonBottom.y };
+            // Line from Sun Bottom to Moon Top
+            const penumbraLineBottom = { x1: sunBottom.x, y1: sunBottom.y, x2: moonTop.x, y2: moonTop.y };
+
+            // Extend penumbra lines
+            const penumbraEndPointTop = extendLine(penumbraLineTop.x1, penumbraLineTop.y1, penumbraLineTop.x2, penumbraLineTop.y2, SVG_WIDTH);
+            const penumbraEndPointBottom = extendLine(penumbraLineBottom.x1, penumbraLineBottom.y1, penumbraLineBottom.x2, penumbraLineBottom.y2, SVG_WIDTH);
+
+            // Draw Penumbra Polygon (as one shape for simplicity, covering umbra area too)
+            // We rely on draw order (penumbra first) and opacity/color to show both
+            penumbra.setAttribute('points', `${moonTop.x},${moonTop.y} ${penumbraEndPointBottom.x},${penumbraEndPointBottom.y} ${penumbraEndPointTop.x},${penumbraEndPointTop.y} ${moonBottom.x},${moonBottom.y}`);
+
+            // --- Update Defining Rays ---
+            rayUmbraTop.setAttribute('x1', sunTop.x);
+            rayUmbraTop.setAttribute('y1', sunTop.y);
+            rayUmbraTop.setAttribute('x2', umbraEndPointTop.x);
+            rayUmbraTop.setAttribute('y2', umbraEndPointTop.y);
+
+            rayUmbraBottom.setAttribute('x1', sunBottom.x);
+            rayUmbraBottom.setAttribute('y1', sunBottom.y);
+            rayUmbraBottom.setAttribute('x2', umbraEndPointBottom.x);
+            rayUmbraBottom.setAttribute('y2', umbraEndPointBottom.y);
+
+            rayPenumbraTop.setAttribute('x1', sunTop.x);
+            rayPenumbraTop.setAttribute('y1', sunTop.y);
+            rayPenumbraTop.setAttribute('x2', penumbraEndPointTop.x); // Connects to Moon bottom, extends Top
+            rayPenumbraTop.setAttribute('y2', penumbraEndPointTop.y);
+
+            rayPenumbraBottom.setAttribute('x1', sunBottom.x);
+            rayPenumbraBottom.setAttribute('y1', sunBottom.y);
+            rayPenumbraBottom.setAttribute('x2', penumbraEndPointBottom.x); // Connects to Moon top, extends Bottom
+            rayPenumbraBottom.setAttribute('y2', penumbraEndPointBottom.y);
+
+            // --- Update Labels ---
+            moonLabel.setAttribute('x', moonPos.x);
+            moonLabel.setAttribute('y', moonPos.y - moonPos.r - 10); // Position above moon
+
+            // Position shadow labels roughly in the middle of the shadow cone
+            const shadowLabelX = moonPos.x + (earthPos.x - moonPos.x) / 2;
+            umbraLabel.setAttribute('x', shadowLabelX);
+            umbraLabel.setAttribute('y', moonPos.y + 10); // Below center line
+            penumbraLabel.setAttribute('x', shadowLabelX);
+            penumbraLabel.setAttribute('y', moonPos.y + 45); // Further below center line
+        }
+
+        // Helper function to extend a line segment to a target x-coordinate
+        function extendLine(x1, y1, x2, y2, targetX) {
+            if (x2 === x1) { // Avoid division by zero for vertical lines
+                return { x: x1, y: y1 > y2 ? -Infinity : Infinity }; // Or handle appropriately
+            }
+            const slope = (y2 - y1) / (x2 - x1);
+            const yIntercept = y1 - slope * x1;
+            const targetY = slope * targetX + yIntercept;
+            return { x: targetX, y: targetY };
+        }
+
+
+        // Initial Calculation
+        calculateShadows(parseFloat(slider.value) + sunPos.x + sunPos.r + 50); // Initial slider value mapped to position
+
+        // Event Listener for Slider
+        slider.addEventListener('input', (event) => {
+            // Map slider value (200-450) to a Moon X position
+            // Let slider value represent distance between Moon and Earth surfaces approximately
+            // Min distance: slider=200 -> moonX = sunPos.x + sunPos.r + 50 (gap)
+            // Max distance: slider=450 -> moonX = earthPos.x - earthPos.r - 50 (gap)
+            // This mapping is illustrative, not physically scaled.
+            const minMoonX = sunPos.x + sunPos.r + 70; // Ensure moon doesn't overlap sun visually
+            const maxMoonX = earthPos.x - earthPos.r - 30; // Ensure moon doesn't overlap earth visually
+            const sliderMin = parseFloat(slider.min);
+            const sliderMax = parseFloat(slider.max);
+            const sliderVal = parseFloat(event.target.value);
+
+            // Simple linear mapping (closer moon = smaller slider value = smaller X)
+            // We want closer moon = larger slider value for intuition "distance from Earth"
+            const moonX = minMoonX + ((maxMoonX - minMoonX) * (sliderMax - sliderVal)) / (sliderMax - sliderMin);
+
+
+            // Revised mapping: slider value represents distance from Earth (larger value = further)
+            // Let slider 200 be closest (maxMoonX), slider 450 be furthest (minMoonX)
+            // const moonX = maxMoonX - ((maxMoonX - minMoonX) * (sliderVal - sliderMin)) / (sliderMax - sliderMin);
+
+            // Let's try another mapping: slider value = distance from fixed sun point
+            // Map slider value (200 to 450) -> moonX position (e.g., 300 to 550)
+            const targetMinMoonX = 300;
+            const targetMaxMoonX = 550;
+            const moonXPos = targetMinMoonX + ((targetMaxMoonX - targetMinMoonX) * (sliderVal - sliderMin)) / (sliderMax - sliderMin);
+
+
+            calculateShadows(moonXPos);
+        });
+
+        // Set fixed positions for Sun and Earth visually
+        sun.setAttribute('cx', sunPos.x);
+        sun.setAttribute('cy', sunPos.y);
+        sun.setAttribute('r', sunPos.r);
+        earth.setAttribute('cx', earthPos.x);
+        earth.setAttribute('cy', earthPos.y);
+        earth.setAttribute('r', earthPos.r);
+
+        // Set initial fixed labels
+        document.getElementById('sun-label').setAttribute('x', sunPos.x);
+        document.getElementById('sun-label').setAttribute('y', sunPos.y - sunPos.r - 10);
+        document.getElementById('earth-label').setAttribute('x', earthPos.x);
+        document.getElementById('earth-label').setAttribute('y', earthPos.y - earthPos.r - 10);
+
+    </script>
+
+</body>
+
+</html>
