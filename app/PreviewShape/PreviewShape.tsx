@@ -56,7 +56,9 @@ export class PreviewShapeUtil extends BaseBoxShapeUtil<PreviewShape> {
 		// Kind of a hack—we're preventing users from pinching-zooming into the iframe
 		const htmlToUse = shape.props.html.replace(
 			`</body>`,
-			`<script src="https://unpkg.com/html2canvas"></script><script>
+			`
+			 <canvas id="overlayCanvas"></canvas>
+			<script src="https://unpkg.com/html2canvas"></script><script>
 			// send the screenshot to the parent window
   			window.addEventListener('message', function(event) {
     		if (event.data.action === 'take-screenshot' && event.data.shapeid === "${shape.id}") {
@@ -67,6 +69,232 @@ export class PreviewShapeUtil extends BaseBoxShapeUtil<PreviewShape> {
     		}
   			}, false);
 			document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+			 <style>
+        #overlayCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1000;
+            pointer-events: none;
+            border: 1px dashed lightgray;
+            display: none; /* Hide canvas by default */
+        }
+        .fix-button {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 8px 16px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            z-index: 1001;
+        }
+        .fix-button:hover {
+            background: #0056b3;
+        }
+        .fix-button.active {
+            background: #dc3545;
+        }
+    </style>
+			<script>
+        const canvas = document.getElementById('overlayCanvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+        let startX, startY, endX, endY;
+        let isFixMode = false;
+
+        // Add Fix button
+        const fixButton = document.createElement('button');
+        fixButton.textContent = 'Fix';
+        fixButton.className = 'fix-button';
+        document.body.appendChild(fixButton);
+
+        fixButton.addEventListener('click', () => {
+            isFixMode = !isFixMode;
+            canvas.style.display = isFixMode ? 'block' : 'none';
+            fixButton.classList.toggle('active');
+            fixButton.textContent = isFixMode ? 'Cancel Fix' : 'Fix';
+            
+            if (!isFixMode) {
+                // Clear any existing arrow
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+            
+            console.log('Fix mode:', isFixMode);
+        });
+
+        function resizeCanvas() {
+            console.log('Resizing canvas...');
+            // Set canvas dimensions to match the entire document size
+            const newWidth = Math.max(
+                document.documentElement.scrollWidth,
+                document.documentElement.clientWidth,
+                document.body.scrollWidth
+            );
+            const newHeight = Math.max(
+                document.documentElement.scrollHeight,
+                document.documentElement.clientHeight,
+                document.body.scrollHeight
+            );
+            
+            console.log('New dimensions:', { width: newWidth, height: newHeight });
+            
+            canvas.width = newWidth;
+            canvas.height = newHeight;
+            
+            // Position the canvas to cover everything
+            canvas.style.position = 'fixed';
+            canvas.style.top = '0';
+            canvas.style.left = '0';
+            canvas.style.width = '100%';
+            canvas.style.height = '100%';
+            canvas.style.zIndex = '1000';
+            canvas.style.pointerEvents = 'none';
+            
+            console.log('Canvas styles set:', {
+                position: canvas.style.position,
+                width: canvas.style.width,
+                height: canvas.style.height
+            });
+        }
+
+        function drawArrow(context, fromx, fromy, tox, toy, arrowWidth = 10, color = 'red') {
+            const headlen = 15; // length of head in pixels
+            const dx = tox - fromx;
+            const dy = toy - fromy;
+            const angle = Math.atan2(dy, dx);
+
+            context.clearRect(0, 0, canvas.width, canvas.height); // Clear previous frame
+
+            context.strokeStyle = color;
+            context.fillStyle = color;
+            context.lineWidth = arrowWidth;
+
+            // Draw line
+            context.beginPath();
+            context.moveTo(fromx, fromy);
+            context.lineTo(tox, toy);
+            context.stroke();
+
+            // Draw arrowhead
+            context.beginPath();
+            context.moveTo(tox, toy);
+            context.lineTo(tox - headlen * Math.cos(angle - Math.PI / 6), toy - headlen * Math.sin(angle - Math.PI / 6));
+            context.lineTo(tox - headlen * Math.cos(angle + Math.PI / 6), toy - headlen * Math.sin(angle + Math.PI / 6));
+            context.closePath();
+            context.fill();
+        }
+
+        function getPageCoordinates(event) {
+            // Get the canvas's bounding rectangle
+            const rect = canvas.getBoundingClientRect();
+            // Calculate coordinates relative to the canvas
+            return {
+                x: event.clientX - rect.left,
+                y: event.clientY - rect.top
+            };
+        }
+
+        // --- Event Listeners ---
+
+        document.addEventListener('mousedown', (e) => {
+            if (!isFixMode) return; // Only allow drawing in fix mode
+            
+            console.log('Mouse down in fix mode');
+            // Check if the click is on a button or interactive element
+            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'A' || e.target.closest('button, a')) {
+                return;
+            }
+
+            isDrawing = true;
+            const coords = getPageCoordinates(e);
+            startX = coords.x;
+            startY = coords.y;
+            endX = startX;
+            endY = startY;
+            canvas.style.pointerEvents = 'auto';
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            console.log('Draw start:', startX, startY);
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isFixMode || !isDrawing) return;
+            
+            const coords = getPageCoordinates(e);
+            endX = coords.x;
+            endY = coords.y;
+            
+            drawArrow(ctx, startX, startY, endX, endY, 3, 'rgba(255, 0, 0, 0.7)');
+        });
+
+        document.addEventListener('mouseup', async (e) => {
+            if (!isFixMode || !isDrawing) return;
+            
+            console.log('Ending arrow draw in fix mode');
+            isDrawing = false;
+            canvas.style.pointerEvents = 'none';
+
+            const coords = getPageCoordinates(e);
+            endX = coords.x;
+            endY = coords.y;
+
+            // Draw final arrow
+            drawArrow(ctx, startX, startY, endX, endY, 4, 'red');
+
+            // Capture screenshot with arrow
+            try {
+                console.log('Capturing screenshot with arrow...');
+                const capturedCanvas = await html2canvas(document.documentElement, {
+                    useCORS: true,
+                    scrollX: -window.scrollX,
+                    scrollY: -window.scrollY,
+                    windowWidth: document.documentElement.scrollWidth,
+                    windowHeight: document.documentElement.scrollHeight,
+                    width: document.documentElement.scrollWidth,
+                    height: document.documentElement.scrollHeight,
+                    logging: true
+                });
+
+                const imageData = capturedCanvas.toDataURL('image/png');
+                window.parent.postMessage({
+                    action: 'fix-arrow-screenshot',
+                    screenshot: imageData,
+                    shapeid: "${shape.id}"
+                }, "*");
+
+                console.log('Screenshot sent to parent');
+                
+                // Reset fix mode
+                isFixMode = false;
+                canvas.style.display = 'none';
+                fixButton.classList.remove('active');
+                fixButton.textContent = 'Fix';
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+            } catch (error) {
+                console.error('Screenshot error:', error);
+                alert('Error capturing screenshot');
+            }
+        });
+
+        // --- Initialization ---
+        window.addEventListener('load', resizeCanvas); // Resize on load
+        window.addEventListener('resize', () => {
+            console.log('Resize event triggered');
+            resizeCanvas();
+        });
+        
+        // Initial canvas setup with logging
+        console.log('Initial canvas setup');
+        resizeCanvas();
+
+    </script>
+			
 </body>`
 		)
 
@@ -173,6 +401,14 @@ export class PreviewShapeUtil extends BaseBoxShapeUtil<PreviewShape> {
 					window.removeEventListener('message', windowListener)
 					clearTimeout(timeOut)
 
+					resolve(<PreviewImage href={event.data.screenshot} shape={shape} />)
+				}
+
+				if (event.data.action === 'fix-arrow-screenshot' && event.data?.shapeid === shape.id) {
+					window.removeEventListener('message', windowListener)
+					clearTimeout(timeOut)
+
+					console.log('fix-arrow-screenshot', event.data)
 					resolve(<PreviewImage href={event.data.screenshot} shape={shape} />)
 				}
 			}
