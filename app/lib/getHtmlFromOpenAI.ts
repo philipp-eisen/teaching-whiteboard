@@ -1,33 +1,25 @@
+import { createOpenAI } from '@ai-sdk/openai'
+import { CoreMessage, generateObject, UserContent } from 'ai'
+import { z } from 'zod'
 import { PreviewShape } from '../PreviewShape/PreviewShape'
-import { SYSTEM_PROMPT, USER_PROMPT_WITH_PREVIOUS_DESIGN, USER_PROMPT } from '../prompt'
+import { SYSTEM_PROMPT, USER_PROMPT, USER_PROMPT_WITH_PREVIOUS_DESIGN } from '../prompt'
 
-export async function getHtmlFromOpenAI({
+const openai = createOpenAI({
+	apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
+})
+
+export async function getHtmlFromAi({
 	image,
-	apiKey,
 	text,
 	theme = 'light',
 	previousPreviews = [],
 }: {
 	image: string
-	apiKey: string
 	text: string
 	theme?: string
 	previousPreviews?: PreviewShape[]
 }) {
-	if (!apiKey) throw Error('You need to provide an API key (sorry)')
-
-	const messages: GPT4VCompletionRequest['messages'] = [
-		{
-			role: 'system',
-			content: SYSTEM_PROMPT,
-		},
-		{
-			role: 'user',
-			content: [],
-		},
-	]
-
-	const userContent = messages[1].content as Exclude<MessageContent, string>
+	const userContent: UserContent = []
 
 	// Add the prompt into
 	userContent.push({
@@ -37,11 +29,8 @@ export async function getHtmlFromOpenAI({
 
 	// Add the image
 	userContent.push({
-		type: 'image_url',
-		image_url: {
-			url: image,
-			detail: 'high',
-		},
+		type: 'image',
+		image: image,
 	})
 
 	// Add the strings of text
@@ -73,75 +62,22 @@ export async function getHtmlFromOpenAI({
 		text: `Please make your result use the ${theme} theme.`,
 	})
 
-	const body: GPT4VCompletionRequest = {
-		model: 'gpt-4o',
-		max_tokens: 4096,
+	const userMessage: CoreMessage = {
+		role: 'user',
+		content: userContent,
+	}
+
+	const result = await generateObject({
+		model: openai('gpt-4o'),
+		maxTokens: 4096,
 		temperature: 0,
-		messages,
 		seed: 42,
-		n: 1,
-	}
+		messages: [userMessage],
+		system: SYSTEM_PROMPT,
+		schema: z.object({
+			html: z.string(),
+		}),
+	})
 
-	let json = null
-
-	try {
-		const resp = await fetch('https://api.openai.com/v1/chat/completions', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Authorization: `Bearer ${apiKey}`,
-			},
-			body: JSON.stringify(body),
-		})
-		json = await resp.json()
-	} catch (e: any) {
-		throw Error(`Could not contact OpenAI: ${e.message}`)
-	}
-
-	return json
-}
-
-type MessageContent =
-	| string
-	| (
-			| string
-			| {
-					type: 'image_url'
-					image_url:
-						| string
-						| {
-								url: string
-								detail: 'low' | 'high' | 'auto'
-						  }
-			  }
-			| {
-					type: 'text'
-					text: string
-			  }
-	  )[]
-
-export type GPT4VCompletionRequest = {
-	model: 'gpt-4o'
-	messages: {
-		role: 'system' | 'user' | 'assistant' | 'function'
-		content: MessageContent
-		name?: string | undefined
-	}[]
-	functions?: any[] | undefined
-	function_call?: any | undefined
-	stream?: boolean | undefined
-	temperature?: number | undefined
-	top_p?: number | undefined
-	max_tokens?: number | undefined
-	n?: number | undefined
-	best_of?: number | undefined
-	frequency_penalty?: number | undefined
-	presence_penalty?: number | undefined
-	seed?: number | undefined
-	logit_bias?:
-		| {
-				[x: string]: number
-		  }
-		| undefined
-	stop?: (string[] | string) | undefined
+	return result.object.html
 }
