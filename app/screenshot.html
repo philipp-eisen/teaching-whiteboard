@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Draw Arrow & Capture</title>
+    <!-- Include html2canvas library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"
+        integrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <style>
+        body {
+            min-height: 150vh;
+            /* Make body scrollable */
+            margin: 0;
+            font-family: sans-serif;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+
+        #overlayCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            /* Dimensions set by script */
+            z-index: 1000;
+            /* Ensure it's on top */
+            pointer-events: none;
+            /* Initially transparent to mouse events */
+            border: 1px dashed lightgray;
+            /* Optional: Visualize canvas bounds */
+        }
+
+        /* Placeholder content styling */
+        h1 {
+            color: navy;
+        }
+
+        p {
+            line-height: 1.6;
+        }
+
+        .placeholder-box {
+            border: 2px solid dodgerblue;
+            background-color: lightblue;
+            padding: 20px;
+            margin: 30px 0;
+            width: 70%;
+        }
+
+        .spacer {
+            height: 400px;
+            /* Add space to encourage scrolling */
+        }
+
+        button {
+            padding: 10px 15px;
+            margin: 20px 0;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Arrow Drawing & Screenshot Test</h1>
+    <p>Drag your mouse anywhere on this page to draw an arrow. When you release the mouse button, a screenshot of the
+        page including the arrow will be attempted to be copied to your clipboard.</p>
+
+    <button onclick="alert('Button Clicked!')">Test Button 1</button>
+
+    <div class="placeholder-box">
+        This is a placeholder box to add some content to the page. Interactions with elements below the canvas should
+        still work when not drawing.
+    </div>
+
+    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore
+        magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo
+        consequat.</p>
+
+    <div class="spacer"></div>
+
+    <h2>More Content Down Here</h2>
+    <p>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur
+        sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+
+    <button onclick="console.log('Button 2 clicked')">Another Button</button>
+
+    <!-- Canvas for drawing the arrow -->
+    <canvas id="overlayCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('overlayCanvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+        let startX, startY, endX, endY;
+
+        function resizeCanvas() {
+            // Set canvas dimensions to match the entire document size
+            canvas.width = document.documentElement.scrollWidth;
+            canvas.height = document.documentElement.scrollHeight;
+            // Re-apply styles that might be reset by dimension change
+            canvas.style.position = 'absolute';
+            canvas.style.top = '0';
+            canvas.style.left = '0';
+            canvas.style.zIndex = '1000';
+            canvas.style.pointerEvents = 'none'; // Reset pointer events
+            console.log(`Canvas resized to: ${canvas.width}x${canvas.height}`);
+        }
+
+        function drawArrow(context, fromx, fromy, tox, toy, arrowWidth = 10, color = 'red') {
+            const headlen = 15; // length of head in pixels
+            const dx = tox - fromx;
+            const dy = toy - fromy;
+            const angle = Math.atan2(dy, dx);
+
+            context.clearRect(0, 0, canvas.width, canvas.height); // Clear previous frame
+
+            context.strokeStyle = color;
+            context.fillStyle = color;
+            context.lineWidth = arrowWidth;
+
+            // Draw line
+            context.beginPath();
+            context.moveTo(fromx, fromy);
+            context.lineTo(tox, toy);
+            context.stroke();
+
+            // Draw arrowhead
+            context.beginPath();
+            context.moveTo(tox, toy);
+            context.lineTo(tox - headlen * Math.cos(angle - Math.PI / 6), toy - headlen * Math.sin(angle - Math.PI / 6));
+            context.lineTo(tox - headlen * Math.cos(angle + Math.PI / 6), toy - headlen * Math.sin(angle + Math.PI / 6));
+            context.closePath();
+            context.fill();
+        }
+
+        function getPageCoordinates(event) {
+            // Use pageX/pageY to get coordinates relative to the whole document
+            return { x: event.pageX, y: event.pageY };
+        }
+
+        // --- Event Listeners ---
+
+        document.addEventListener('mousedown', (e) => {
+            // Check if the click is on a button or interactive element to avoid starting draw
+            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'A' || e.target.closest('button, a')) {
+                return;
+            }
+
+            isDrawing = true;
+            const coords = getPageCoordinates(e);
+            startX = coords.x;
+            startY = coords.y;
+            endX = startX; // Initialize end coords
+            endY = startY;
+            canvas.style.pointerEvents = 'auto'; // Make canvas catch mouse events during draw
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear any previous arrow
+            console.log('Draw start:', startX, startY);
+            e.preventDefault(); // Prevent text selection/dragging
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDrawing) return;
+
+            const coords = getPageCoordinates(e);
+            endX = coords.x;
+            endY = coords.y;
+
+            // Draw temporary arrow while moving
+            drawArrow(ctx, startX, startY, endX, endY, 3, 'rgba(255, 0, 0, 0.7)'); // Use semi-transparent for drawing phase
+        });
+
+        document.addEventListener('mouseup', async (e) => {
+            if (!isDrawing) return;
+
+            isDrawing = false;
+            canvas.style.pointerEvents = 'none'; // Make canvas transparent again
+
+            const coords = getPageCoordinates(e);
+            endX = coords.x;
+            endY = coords.y;
+
+            // Draw the final, solid arrow
+            drawArrow(ctx, startX, startY, endX, endY, 4, 'red'); // Final thicker, solid arrow
+            console.log('Draw end:', endX, endY);
+
+
+            // --- Screenshot Logic ---
+            console.log('Attempting to capture screenshot...');
+            // Hide the temporary canvas border during screenshot
+            const originalBorderStyle = canvas.style.border;
+            canvas.style.border = 'none';
+
+            try {
+                // Use html2canvas to capture the entire documentElement
+                const capturedCanvas = await html2canvas(document.documentElement, {
+                    useCORS: true, // Important for external resources if any
+                    scrollX: -window.scrollX, // Account for current scroll position
+                    scrollY: -window.scrollY,
+                    windowWidth: document.documentElement.scrollWidth, // Ensure full width/height capture
+                    windowHeight: document.documentElement.scrollHeight,
+                    width: document.documentElement.scrollWidth,
+                    height: document.documentElement.scrollHeight,
+                    logging: true // Enable logging for debugging
+                });
+
+                // Restore canvas border
+                canvas.style.border = originalBorderStyle;
+
+                console.log('DOM captured to canvas.');
+
+                // --- Clipboard Logic ---
+                if (navigator.clipboard && navigator.clipboard.write && window.isSecureContext) {
+                    capturedCanvas.toBlob(async (blob) => {
+                        if (!blob) {
+                            console.error('Canvas toBlob failed.');
+                            alert('Error: Could not create image blob.');
+                            // Optional: clear arrow here if failed
+                            // ctx.clearRect(0, 0, canvas.width, canvas.height);
+                            return;
+                        }
+                        try {
+                            const item = new ClipboardItem({ 'image/png': blob });
+                            await navigator.clipboard.write([item]);
+                            console.log('Image copied to clipboard!');
+                            alert('Screenshot (including arrow) copied to clipboard!');
+                            // Optionally clear the arrow after successful copy
+                            // setTimeout(() => ctx.clearRect(0, 0, canvas.width, canvas.height), 500); // Slight delay
+                        } catch (err) {
+                            console.error('Failed to copy image to clipboard:', err);
+                            alert(`Error copying to clipboard: ${err.name}\n(Ensure you are on HTTPS or localhost)`);
+                            // Optional: clear arrow here if failed
+                            // ctx.clearRect(0, 0, canvas.width, canvas.height);
+                        }
+                    }, 'image/png');
+                } else {
+                    console.warn('Clipboard API (write) not available or context is not secure (HTTPS/localhost needed).');
+                    alert('Clipboard API not available. Screenshot could not be copied automatically. (Requires HTTPS or localhost)');
+                    // Offer download as fallback? Or just inform the user.
+                    // Or display the image:
+                    // document.body.appendChild(capturedCanvas); // Append captured canvas for visual verification
+                    // Optional: clear arrow here
+                    // ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+
+            } catch (error) {
+                // Restore canvas border even on error
+                canvas.style.border = originalBorderStyle;
+                console.error('html2canvas error:', error);
+                alert('Error taking screenshot with html2canvas.');
+                // Optional: clear arrow here if failed
+                // ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+            // Decide when to clear the arrow. Let's clear it on the *next* mousedown instead
+            // so the user can see it until they start drawing again.
+            // ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear after screenshot attempt
+        });
+
+        // --- Initialization ---
+        window.addEventListener('load', resizeCanvas); // Resize on load
+        window.addEventListener('resize', resizeCanvas); // Resize on window resize
+
+        // Initial canvas setup
+        resizeCanvas();
+
+    </script>
+
+</body>
+
+</html>
