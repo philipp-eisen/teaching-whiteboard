@@ -1,3 +1,4 @@
+import { createAnthropic } from '@ai-sdk/anthropic'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createOpenAI } from '@ai-sdk/openai'
 import { CoreMessage, generateObject, UserContent } from 'ai'
@@ -13,8 +14,13 @@ const google = createGoogleGenerativeAI({
 	apiKey: process.env.NEXT_PUBLIC_GOOGLE_API_KEY,
 })
 
-const gemini2Point5 = google('gemini-2.5-pro-exp-03-25')
+const anthropic = createAnthropic({
+	apiKey: process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY,
+})
+
+const gemini25 = google('gemini-2.5-pro-exp-03-25')
 const gpt4o = openai('gpt-4o')
+const claude37Sonnet = anthropic('claude-3-7-sonnet-20250219')
 
 export async function getHtmlFromAi({
 	image,
@@ -76,7 +82,7 @@ export async function getHtmlFromAi({
 	}
 
 	const result = await generateObject({
-		model: gemini2Point5,
+		model: gemini25,
 		maxTokens: 4096,
 		temperature: 0,
 		seed: 42,
