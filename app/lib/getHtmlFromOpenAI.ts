@@ -1,5 +1,5 @@
 import { PreviewShape } from '../PreviewShape/PreviewShape'
-import { SYSTEM_PROMPT, USER_PROMPT_WITH_PREVIOUS_DESIGN, USER_PROMPT } from '../prompt'
+import { SYSTEM_PROMPT, USER_PROMPT, USER_PROMPT_WITH_PREVIOUS_DESIGN } from '../prompt'
 
 export async function getHtmlFromOpenAI({
 	image,
