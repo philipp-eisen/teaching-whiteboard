@@ -8,10 +8,7 @@ export function MakeRealButton() {
 
 	const handleClick = useCallback(async () => {
 		try {
-			const input = document.getElementById('openai_key_risky_but_cool') as HTMLInputElement
-			const apiKey = input?.value ?? null
-			if (!apiKey) throw Error('Make sure you include your API Key!')
-			await makeReal(editor, apiKey)
+			await makeReal(editor)
 		} catch (e) {
 			console.error(e)
 			addToast({
@@ -24,7 +21,7 @@ export function MakeRealButton() {
 
 	return (
 		<button className="makeRealButton" onClick={handleClick}>
-			Make Real
+			Animate me
 		</button>
 	)
 }

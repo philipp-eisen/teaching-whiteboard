@@ -4,7 +4,7 @@ import { blobToBase64 } from './blobToBase64'
 import { getHtmlFromAi } from './getHtml'
 import { getTextFromSelectedShapes } from './getSelectionAsText'
 
-export async function makeReal(editor: Editor, apiKey: string) {
+export async function makeReal(editor: Editor) {
 	// Get the selected shapes (we need at least one)
 	const selectedShapes = editor.getSelectedShapes()
 	if (selectedShapes.length === 0) throw Error('First select something to make real.')
@@ -33,7 +33,7 @@ export async function makeReal(editor: Editor, apiKey: string) {
 	const dataUrl = await blobToBase64(blob!)
 
 	// Get any previous previews among the selected shapes
-  // We don't want to use previous previews for now
+	// We don't want to use previous previews for now
 	const previousPreviews: PreviewShape[] = []
 	// selectedShapes.filter(
 	// 	(shape) => shape.type === 'response'

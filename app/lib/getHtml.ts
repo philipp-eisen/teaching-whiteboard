@@ -1,3 +1,5 @@
+'use server'
+
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createOpenAI } from '@ai-sdk/openai'
@@ -5,6 +7,7 @@ import { CoreMessage, generateObject, generateText, UserContent } from 'ai'
 import { z } from 'zod'
 import { PreviewShape } from '../PreviewShape/PreviewShape'
 import { SYSTEM_PROMPT, USER_PROMPT, USER_PROMPT_WITH_PREVIOUS_DESIGN } from '../prompt'
+import { generateAnimationDescriptionFromScribble } from './scribble-to-prompt'
 
 const openai = createOpenAI({
 	apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
@@ -78,28 +81,46 @@ export async function getHtmlFromAi({
 		text: `Please make your result use the ${theme} theme.`,
 	})
 
+	userContent.push({
+		type: 'text',
+		text: `Here's a description of how the image could be animated to explain the concept: ${await generateAnimationDescriptionFromScribble(
+			{
+				image,
+			}
+		)}`,
+	})
+
+	userContent.push({
+		type: 'text',
+		text: 'The animation should be interactive. Identify key components or variables that users can manipulate to observe effects. Only output the html. Do not include any other text.',
+	})
+
+	userContent.push({
+		type: 'text',
+		text: '```html',
+	})
+
 	const userMessage: CoreMessage = {
 		role: 'user',
 		content: userContent,
 	}
 
 	const params = {
-		model: claude37Sonnet,
-		maxTokens: 4096,
+		model: gemini25,
 		temperature: 0,
+		system: SYSTEM_PROMPT,
 		headers: {
 			'anthropic-dangerous-direct-browser-access': 'true',
 		},
 		seed: 42,
 		messages: [userMessage],
-		system: SYSTEM_PROMPT,
 	}
 
 	if (generationType === 'text') {
 		const result = await generateText({
 			...params,
 		})
-		return result.text
+		return removeHtmlMarkdown(result.text)
 	} else {
 		const result = await generateObject({
 			...params,
@@ -107,6 +128,10 @@ export async function getHtmlFromAi({
 				html: z.string(),
 			}),
 		})
-		return result.object.html
+		return removeHtmlMarkdown(result.object.html)
 	}
+}
+
+const removeHtmlMarkdown = (html: string) => {
+	return html.replace(/^```html\n/, '').replace(/\n```$/, '')
 }
