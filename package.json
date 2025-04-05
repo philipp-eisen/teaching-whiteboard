@@ -9,10 +9,16 @@
 		"lint": "next lint"
 	},
 	"dependencies": {
+		"@ai-sdk/anthropic": "^1.2.6",
+		"@ai-sdk/google": "^1.2.7",
+		"@ai-sdk/openai": "^1.2.1",
+		"ai": "^4.3.1",
+		"dedent": "^1.5.3",
 		"next": "14.0.3",
 		"react": "^18",
 		"react-dom": "^18",
-		"tldraw": "^3.11.0"
+		"tldraw": "^3.11.0",
+		"zod": "^3.24.2"
 	},
 	"devDependencies": {
 		"@types/node": "^20",
@@ -21,5 +27,6 @@
 		"eslint": "^8",
 		"eslint-config-next": "14.0.3",
 		"typescript": "^5"
-	}
+	},
+	"packageManager": "pnpm@10.6.1+sha512.40ee09af407fa9fbb5fbfb8e1cb40fbb74c0af0c3e10e9224d7b53c7658528615b2c92450e74cfad91e3a2dcafe3ce4050d80bda71d757756d2ce2b66213e9a3"
 }
