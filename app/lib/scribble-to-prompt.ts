@@ -35,11 +35,10 @@ const geminiFlash = google('gemini-2.0-flash-001')
 // `
 
 const SYSTEM_PROMPT = `
-Describe the scene for a professional animator. 
+Your task is to understand what the users intent is with this drawing.
+They user wants to have an explanation for a physics concept.
 
 Be clear and concise.
-
-Only output the description. Do not include any other text.
 `
 
 /**
@@ -53,13 +52,13 @@ export async function generateAnimationDescriptionFromScribble({
 }: {
 	image: string // Expecting base64 data URL or a public URL
 }): Promise<string> {
-  console.log('Generating animation description from scribble...')
+	console.log('Generating animation description from scribble...')
 	const userContent: UserContent = []
 
 	// Add the core instruction
 	userContent.push({
 		type: 'text',
-		text: 'Describe how this scribble could be animated to explain a concept.',
+		text: 'Name the physics concept that the user wants an animation for.',
 	})
 
 	// Add the image
@@ -77,7 +76,7 @@ export async function generateAnimationDescriptionFromScribble({
 	const result = await generateText({
 		model: geminiFlash,
 		maxTokens: 512, // Limit the response length
-		temperature: 0.3, // Lower temperature for more focused output
+		temperature: 0.0, // Lower temperature for more focused output
 		messages: [userMessage],
 		system: SYSTEM_PROMPT,
 	})
