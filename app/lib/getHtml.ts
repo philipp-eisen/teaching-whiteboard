@@ -92,7 +92,7 @@ export async function getHtmlFromAi({
 
 	const params = {
 		model: claude37Sonnet,
-		maxTokens: 4096,
+		maxTokens: 32_096,
 		temperature: 0,
 		headers: {
 			'anthropic-dangerous-direct-browser-access': 'true',
