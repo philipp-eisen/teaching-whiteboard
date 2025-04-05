@@ -1,7 +1,7 @@
 import { Editor, createShapeId } from 'tldraw'
 import { PreviewShape } from '../PreviewShape/PreviewShape'
 import { blobToBase64 } from './blobToBase64'
-import { getHtmlFromAi } from './getHtmlFromOpenAI'
+import { getHtmlFromAi } from './getHtml'
 import { getTextFromSelectedShapes } from './getSelectionAsText'
 
 export async function makeReal(editor: Editor, apiKey: string) {

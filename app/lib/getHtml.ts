@@ -1,3 +1,4 @@
+import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createOpenAI } from '@ai-sdk/openai'
 import { CoreMessage, generateObject, UserContent } from 'ai'
 import { z } from 'zod'
@@ -7,6 +8,13 @@ import { SYSTEM_PROMPT, USER_PROMPT, USER_PROMPT_WITH_PREVIOUS_DESIGN } from '..
 const openai = createOpenAI({
 	apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
 })
+
+const google = createGoogleGenerativeAI({
+	apiKey: process.env.NEXT_PUBLIC_GOOGLE_API_KEY,
+})
+
+const gemini2Point5 = google('gemini-2.5-pro-exp-03-25')
+const gpt4o = openai('gpt-4o')
 
 export async function getHtmlFromAi({
 	image,
@@ -68,7 +76,7 @@ export async function getHtmlFromAi({
 	}
 
 	const result = await generateObject({
-		model: openai('gpt-4o'),
+		model: gemini2Point5,
 		maxTokens: 4096,
 		temperature: 0,
 		seed: 42,
