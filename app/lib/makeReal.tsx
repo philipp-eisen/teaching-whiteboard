@@ -33,7 +33,7 @@ export async function makeReal(editor: Editor) {
 	const dataUrl = await blobToBase64(blob!)
 
 	// Get any previous previews among the selected shapes
-  // We don't want to use previous previews for now
+	// We don't want to use previous previews for now
 	const previousPreviews: PreviewShape[] = []
 	// selectedShapes.filter(
 	// 	(shape) => shape.type === 'response'

@@ -145,3 +145,13 @@
 	justify-content: center;
 	cursor: pointer;
 }
+
+.tl-watermark_SEE-LICENSE {
+	display: none !important;
+}
+.your-own-api-key {
+	display: none !important;
+}
+.tlui-page-menu__trigger {
+	display: none !important;
+}
