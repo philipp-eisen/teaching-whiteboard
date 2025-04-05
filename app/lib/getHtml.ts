@@ -82,9 +82,12 @@ export async function getHtmlFromAi({
 	}
 
 	const result = await generateObject({
-		model: gemini25,
+		model: claude37Sonnet,
 		maxTokens: 4096,
 		temperature: 0,
+		headers: {
+			'anthropic-dangerous-direct-browser-access': 'true',
+		},
 		seed: 42,
 		messages: [userMessage],
 		system: SYSTEM_PROMPT,
