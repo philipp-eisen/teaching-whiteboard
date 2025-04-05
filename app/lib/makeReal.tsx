@@ -3,7 +3,6 @@ import { PreviewShape } from '../PreviewShape/PreviewShape'
 import { blobToBase64 } from './blobToBase64'
 import { getHtmlFromAi } from './getHtml'
 import { getTextFromSelectedShapes } from './getSelectionAsText'
-import { sketchToHTML, sketchToThreeJs } from './ai/html-to-animation'
 
 export async function makeReal(editor: Editor) {
 	// Get the selected shapes (we need at least one)
@@ -34,7 +33,7 @@ export async function makeReal(editor: Editor) {
 	const dataUrl = await blobToBase64(blob!)
 
 	// Get any previous previews among the selected shapes
-	// We don't want to use previous previews for now
+  // We don't want to use previous previews for now
 	const previousPreviews: PreviewShape[] = []
 	// selectedShapes.filter(
 	// 	(shape) => shape.type === 'response'
@@ -42,20 +41,12 @@ export async function makeReal(editor: Editor) {
 
 	// Send everything to OpenAI and get some HTML back
 	try {
-		// const html = await getHtmlFromAi({
-		// 	image: dataUrl,
-		// 	text: getTextFromSelectedShapes(editor),
-		// 	previousPreviews,
-		// 	theme: editor.user.getUserPreferences().isDarkMode ? 'dark' : 'light',
-		// })
-
-		const sketch = getTextFromSelectedShapes(editor)
-
-		console.log(sketch)
-
-		const html = await sketchToHTML(sketch, dataUrl)
-
-		console.log(html)
+		const html = await getHtmlFromAi({
+			image: dataUrl,
+			text: getTextFromSelectedShapes(editor),
+			previousPreviews,
+			theme: editor.user.getUserPreferences().isDarkMode ? 'dark' : 'light',
+		})
 
 		if (html.length < 100) {
 			console.warn(html)
@@ -74,7 +65,6 @@ export async function makeReal(editor: Editor) {
 		console.log(`Response: ${html}`)
 	} catch (e) {
 		// If anything went wrong, delete the shape.
-		console.error(e)
 		editor.deleteShape(newShapeId)
 		throw e
 	}
