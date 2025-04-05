@@ -1,7 +1,7 @@
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createOpenAI } from '@ai-sdk/openai'
-import { CoreMessage, generateObject, UserContent } from 'ai'
+import { CoreMessage, generateObject, generateText, UserContent } from 'ai'
 import { z } from 'zod'
 import { PreviewShape } from '../PreviewShape/PreviewShape'
 import { SYSTEM_PROMPT, USER_PROMPT, USER_PROMPT_WITH_PREVIOUS_DESIGN } from '../prompt'
@@ -27,11 +27,13 @@ export async function getHtmlFromAi({
 	text,
 	theme = 'light',
 	previousPreviews = [],
+	generationType = 'text',
 }: {
 	image: string
 	text: string
 	theme?: string
 	previousPreviews?: PreviewShape[]
+	generationType?: 'object' | 'text'
 }) {
 	const userContent: UserContent = []
 
@@ -81,7 +83,7 @@ export async function getHtmlFromAi({
 		content: userContent,
 	}
 
-	const result = await generateObject({
+	const params = {
 		model: claude37Sonnet,
 		maxTokens: 4096,
 		temperature: 0,
@@ -91,10 +93,20 @@ export async function getHtmlFromAi({
 		seed: 42,
 		messages: [userMessage],
 		system: SYSTEM_PROMPT,
-		schema: z.object({
-			html: z.string(),
-		}),
-	})
+	}
 
-	return result.object.html
+	if (generationType === 'text') {
+		const result = await generateText({
+			...params,
+		})
+		return result.text
+	} else {
+		const result = await generateObject({
+			...params,
+			schema: z.object({
+				html: z.string(),
+			}),
+		})
+		return result.object.html
+	}
 }
