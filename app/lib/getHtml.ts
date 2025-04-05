@@ -106,7 +106,7 @@ export async function getHtmlFromAi({
 	}
 
 	const params = {
-		model: gemini25,
+		model: claude37Sonnet,
 		temperature: 0,
 		system: SYSTEM_PROMPT,
 		headers: {
