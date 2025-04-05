@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Electric Circuit</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            /* Align items to the top */
+            min-height: 100vh;
+            background-color: #f0f0f0;
+            padding-top: 20px;
+            /* Add padding at the top */
+            flex-wrap: wrap;
+            /* Allow wrapping if screen is narrow */
+        }
+
+        .container {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            margin: 10px;
+            max-width: 600px;
+            /* Max width for the diagram container */
+        }
+
+        .controls {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: left;
+            margin: 10px;
+            width: 250px;
+            /* Fixed width for controls */
+        }
+
+        h2,
+        h3 {
+            margin-top: 0;
+            color: #333;
+        }
+
+        svg {
+            display: block;
+            margin: 0 auto;
+            /* Center SVG */
+            overflow: visible;
+            /* Ensure shadows/glows aren't clipped */
+            max-width: 100%;
+            /* Make SVG responsive */
+            height: auto;
+        }
+
+        /* Component Styles */
+        .wire {
+            stroke: #555555;
+            stroke-width: 3;
+            fill: none;
+            transition: stroke 0.3s ease;
+        }
+
+        .wire.active {
+            stroke: #f0e68c;
+            /* Light yellow for active wire */
+            stroke-width: 4;
+        }
+
+        .battery-terminal {
+            fill: #888888;
+        }
+
+        .battery-plus {
+            fill: red;
+            font-weight: bold;
+        }
+
+        .battery-minus {
+            fill: blue;
+            font-weight: bold;
+        }
+
+        .switch-pivot {
+            fill: #666666;
+        }
+
+        .switch-arm {
+            stroke: #444444;
+            stroke-width: 4;
+            stroke-linecap: round;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .switch-contact {
+            fill: #cccccc;
+        }
+
+        .switch-group:hover .switch-arm {
+            stroke: #0077cc;
+        }
+
+        .resistor-body {
+            stroke: #000000;
+            stroke-width: 2;
+            fill: none;
+        }
+
+        .resistor-arrow {
+            stroke: #000000;
+            stroke-width: 2;
+            fill: #000000;
+            transition: transform 0.2s ease;
+        }
+
+        .bulb-glass {
+            fill: #e0e0e0;
+            stroke: #aaaaaa;
+            stroke-width: 1;
+        }
+
+        .bulb-filament {
+            stroke: #999999;
+            stroke-width: 2;
+            transition: stroke 0.3s ease, filter 0.3s ease;
+        }
+
+        .bulb-glow {
+            /* The glow effect element */
+            fill: #ffff00;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            /* Using filter for a softer glow - might impact performance slightly */
+            filter: url(#glow-filter);
+        }
+
+        /* State classes */
+        .bulb-on .bulb-filament {
+            stroke: #ffcc00;
+            /* Bright filament */
+        }
+
+        /* Brightness will be controlled by opacity on .bulb-glow */
+
+        /* Controls Styling */
+        label {
+            display: block;
+            margin-top: 15px;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            cursor: pointer;
+        }
+
+        #resistanceValueLabel {
+            font-weight: normal;
+            display: inline-block;
+            margin-left: 10px;
+            color: #555;
+        }
+
+        .explanation {
+            margin-top: 15px;
+            font-size: 0.9em;
+            color: #666;
+            text-align: left;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h2>Interactive Electric Circuit</h2>
+        <svg id="circuitDiagram" width="500" height="350" viewBox="0 0 500 350">
+            <!-- Define glow filter -->
+            <defs>
+                <filter id="glow-filter" x="-50%" y="-50%" width="200%" height="200%">
+                    <feGaussianBlur stdDeviation="5" result="coloredBlur" />
+                    <feMerge>
+                        <feMergeNode in="coloredBlur" />
+                        <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                </filter>
+            </defs>
+
+            <!-- Wires -->
+            <polyline class="wire" id="wire-main-1" points="50,100 50,175 150,175" />
+            <polyline class="wire" id="wire-main-2" points="350,175 450,175 450,100" />
+            <polyline class="wire" id="wire-top-branch" points="150,175 150,75 200,75" />
+            <polyline class="wire" id="wire-bottom-branch" points="150,175 150,275 200,275" />
+            <polyline class="wire" id="wire-top-return" points="300,75 350,75 350,175" />
+            <polyline class="wire" id="wire-bottom-return" points="300,275 350,275 350,175" />
+
+            <!-- Battery -->
+            <g id="battery">
+                <rect x="30" y="80" width="40" height="40" fill="#ffffff" stroke="#333" stroke-width="2" />
+                <line x1="50" y1="80" x2="50" y2="60" stroke="#333" stroke-width="3" class="battery-terminal" />
+                <!-- Positive terminal connector -->
+                <line x1="50" y1="120" x2="50" y2="140" stroke="#333" stroke-width="3" class="battery-terminal" />
+                <!-- Negative terminal connector -->
+                <line x1="35" y1="60" x2="65" y2="60" stroke="#333" stroke-width="4" /> <!-- Positive plate -->
+                <line x1="45" y1="140" x2="55" y2="140" stroke="#333" stroke-width="4" /> <!-- Negative plate -->
+                <text x="70" y="65" class="battery-plus" font-size="16">+</text>
+                <text x="70" y="145" class="battery-minus" font-size="20">-</text>
+                <text x="40" y="105" font-size="12" fill="#555">9V</text>
+            </g>
+
+            <!-- Variable Resistor -->
+            <g id="variable-resistor">
+                <polyline class="resistor-body" points="50,175 65,165 80,185 95,165 110,185 125,165 140,185 150,175" />
+                <line id="resistor-arrow-line" class="resistor-arrow" x1="100" y1="200" x2="100" y2="175"
+                    stroke-width="2" />
+                <polygon id="resistor-arrow-head" class="resistor-arrow" points="95,180 105,180 100,170" />
+                <title>Variable Resistor</title> <!-- Tooltip -->
+            </g>
+
+            <!-- Switch 1 (Top) -->
+            <g id="switch1" class="switch-group" transform="translate(175, 75)">
+                <circle class="switch-contact" cx="-25" cy="0" r="5" />
+                <circle class="switch-pivot" cx="25" cy="0" r="5" />
+                <line id="switch1-arm" class="switch-arm" x1="25" y1="0" x2="-15" y2="-20" transform-origin="25px 0" />
+                <title>Switch 1</title>
+            </g>
+
+            <!-- Switch 2 (Bottom) -->
+            <g id="switch2" class="switch-group" transform="translate(175, 275)">
+                <circle class="switch-contact" cx="-25" cy="0" r="5" />
+                <circle class="switch-pivot" cx="25" cy="0" r="5" />
+                <line id="switch2-arm" class="switch-arm" x1="25" y1="0" x2="-15" y2="20" transform-origin="25px 0" />
+                <title>Switch 2</title>
+            </g>
+
+            <!-- Bulb 1 (Top) -->
+            <g id="bulb1" transform="translate(250, 75)">
+                <circle id="bulb1-glow" class="bulb-glow" cx="0" cy="0" r="25" />
+                <circle class="bulb-glass" cx="0" cy="0" r="20" />
+                <line class="bulb-filament" x1="-10" y1="0" x2="10" y2="0" />
+                <line class="bulb-filament" x1="0" y1="-10" x2="0" y2="10" />
+                <line x1="-20" y1="0" x2="-30" y2="0" class="wire" /> <!-- Connector wire left -->
+                <line x1="20" y1="0" x2="30" y2="0" class="wire" /> <!-- Connector wire right -->
+                <title>Bulb 1</title>
+            </g>
+
+            <!-- Bulb 2 (Bottom) -->
+            <g id="bulb2" transform="translate(250, 275)">
+                <circle id="bulb2-glow" class="bulb-glow" cx="0" cy="0" r="25" />
+                <circle class="bulb-glass" cx="0" cy="0" r="20" />
+                <line class="bulb-filament" x1="-10" y1="0" x2="10" y2="0" />
+                <line class="bulb-filament" x1="0" y1="-10" x2="0" y2="10" />
+                <line x1="-20" y1="0" x2="-30" y2="0" class="wire" /> <!-- Connector wire left -->
+                <line x1="20" y1="0" x2="30" y2="0" class="wire" /> <!-- Connector wire right -->
+                <title>Bulb 2</title>
+            </g>
+        </svg>
+    </div>
+
+    <div class="controls">
+        <h3>Controls</h3>
+
+        <p class="explanation">Click the switches to open or close the circuit path to each bulb.</p>
+
+        <div>
+            <label for="resistanceSlider">Resistance:</label>
+            <input type="range" id="resistanceSlider" min="0" max="100" value="10" step="1">
+            <span id="resistanceValueLabel">10 Ω</span>
+        </div>
+        <p class="explanation">Resistance makes it harder for electricity to flow. More resistance means dimmer bulbs.
+        </p>
+
+        <div class="explanation" style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">
+            <strong>Note on Inductance:</strong> Inductance is another property that affects circuits, especially with
+            AC power (like in your house). It resists *changes* in current flow. It's a bit more complex to show simply
+            here, but it also plays a role in how some circuits behave!
+        </div>
+    </div>
+
+    <script>
+        // Get references to elements
+        const switch1Group = document.getElementById('switch1');
+        const switch2Group = document.getElementById('switch2');
+        const switch1Arm = document.getElementById('switch1-arm');
+        const switch2Arm = document.getElementById('switch2-arm');
+
+        const bulb1 = document.getElementById('bulb1');
+        const bulb2 = document.getElementById('bulb2');
+        const bulb1Glow = document.getElementById('bulb1-glow');
+        const bulb2Glow = document.getElementById('bulb2-glow');
+
+        const resistanceSlider = document.getElementById('resistanceSlider');
+        const resistanceValueLabel = document.getElementById('resistanceValueLabel');
+        const resistorArrowLine = document.getElementById('resistor-arrow-line');
+        const resistorArrowHead = document.getElementById('resistor-arrow-head');
+
+        // Wire elements
+        const wires = {
+            main1: document.getElementById('wire-main-1'),
+            main2: document.getElementById('wire-main-2'),
+            topBranch: document.getElementById('wire-top-branch'),
+            bottomBranch: document.getElementById('wire-bottom-branch'),
+            topReturn: document.getElementById('wire-top-return'),
+            bottomReturn: document.getElementById('wire-bottom-return'),
+            bulb1Connectors: bulb1.querySelectorAll('.wire'), // Include bulb connectors if needed
+            bulb2Connectors: bulb2.querySelectorAll('.wire')
+        };
+
+        // Circuit state
+        let isSwitch1Closed = false;
+        let isSwitch2Closed = false;
+        let resistanceValue = parseInt(resistanceSlider.value); // Initial resistance
+
+        // --- Event Listeners ---
+
+        switch1Group.addEventListener('click', () => {
+            isSwitch1Closed = !isSwitch1Closed;
+            updateCircuit();
+        });
+
+        switch2Group.addEventListener('click', () => {
+            isSwitch2Closed = !isSwitch2Closed;
+            updateCircuit();
+        });
+
+        resistanceSlider.addEventListener('input', () => {
+            resistanceValue = parseInt(resistanceSlider.value);
+            resistanceValueLabel.textContent = `${resistanceValue} Ω`;
+            updateCircuit();
+            updateResistorArrow();
+        });
+
+        // --- Update Functions ---
+
+        function updateResistorArrow() {
+            // Move arrow along the resistor symbol based on slider value
+            const sliderMin = parseInt(resistanceSlider.min);
+            const sliderMax = parseInt(resistanceSlider.max);
+            const sliderRange = sliderMax - sliderMin;
+            const resistorStartX = 50;
+            const resistorEndX = 150;
+            const resistorLength = resistorEndX - resistorStartX;
+
+            const fraction = (resistanceValue - sliderMin) / sliderRange;
+            const arrowX = resistorStartX + fraction * resistorLength;
+
+            // Keep arrow base slightly off the main line
+            const arrowBaseY = 200;
+            const arrowTipY = 175;
+            const arrowHeadBaseY = 180;
+            const arrowHeadTipY = 170;
+
+            resistorArrowLine.setAttribute('x1', arrowX);
+            resistorArrowLine.setAttribute('y1', arrowBaseY);
+            resistorArrowLine.setAttribute('x2', arrowX);
+            resistorArrowLine.setAttribute('y2', arrowTipY);
+
+            resistorArrowHead.setAttribute('points', `${arrowX - 5},${arrowHeadBaseY} ${arrowX + 5},${arrowHeadBaseY} ${arrowX},${arrowHeadTipY}`);
+        }
+
+        function updateCircuit() {
+            // 1. Update Switch Visuals
+            switch1Arm.style.transform = isSwitch1Closed ? 'rotate(0deg)' : 'rotate(-45deg)';
+            switch2Arm.style.transform = isSwitch2Closed ? 'rotate(0deg)' : 'rotate(45deg)';
+
+            // 2. Determine Base Brightness (affected by resistance)
+            // Simple inverse relationship - more resistance = less bright
+            // Adding 1 prevents division by zero and provides a base level
+            // The factor (e.g., 0.05) scales the effect of resistance
+            const maxBrightness = 1.0;
+            const brightnessFactor = 0.05; // Adjust this to change sensitivity
+            let currentBrightness = maxBrightness / (1 + resistanceValue * brightnessFactor);
+
+            // Clamp brightness between 0 and 1
+            currentBrightness = Math.max(0, Math.min(maxBrightness, currentBrightness));
+
+            // 3. Update Bulbs based on switches and brightness
+            let bulb1On = isSwitch1Closed;
+            let bulb2On = isSwitch2Closed;
+
+            bulb1Glow.style.opacity = bulb1On ? currentBrightness : 0;
+            bulb2Glow.style.opacity = bulb2On ? currentBrightness : 0;
+
+            if (bulb1On) {
+                bulb1.classList.add('bulb-on');
+            } else {
+                bulb1.classList.remove('bulb-on');
+            }
+            if (bulb2On) {
+                bulb2.classList.add('bulb-on');
+            } else {
+                bulb2.classList.remove('bulb-on');
+            }
+
+            // 4. Update Wire Visuals (Optional, but helpful)
+            // Deactivate all first
+            Object.values(wires).forEach(wire => {
+                if (wire instanceof NodeList) { // Handle NodeLists like bulb connectors
+                    wire.forEach(w => w.classList.remove('active'));
+                } else if (wire) {
+                    wire.classList.remove('active');
+                }
+            });
+
+            // Activate main path if at least one switch is closed
+            if (bulb1On || bulb2On) {
+                wires.main1.classList.add('active');
+                wires.main2.classList.add('active');
+            }
+
+            // Activate top branch if switch 1 is closed
+            if (bulb1On) {
+                wires.topBranch.classList.add('active');
+                wires.topReturn.classList.add('active');
+                wires.bulb1Connectors.forEach(w => w.classList.add('active'));
+            }
+
+            // Activate bottom branch if switch 2 is closed
+            if (bulb2On) {
+                wires.bottomBranch.classList.add('active');
+                wires.bottomReturn.classList.add('active');
+                wires.bulb2Connectors.forEach(w => w.classList.add('active'));
+            }
+        }
+
+        // --- Initial Setup ---
+        updateCircuit();
+        updateResistorArrow(); // Set initial arrow position
+
+    </script>
+
+</body>
+
+</html>

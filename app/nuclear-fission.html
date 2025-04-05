@@ -1,0 +1,607 @@
+<!-- 
+system: your job is to create animations to go along with a textbook. The animations need to be high fidelity. You can use any library you wan/need. But the result should be accruate so a 12 year old can understand it. Do not make it photorealistic. It just needs to be for illustration. Prefer plain html, js and css. Remember it doesn't need to be physically accurate. It can be split into multiple panels if needed. A twelve year old should be able to understand the core princicples. Put everything into one html file. import any dependencies from a cdn
+
+user: dc electric motor
+ -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nuclear Fission Simulation (Chain Reaction)</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 20px;
+            background-color: #f0f0f0;
+        }
+
+        #simulationContainer {
+            position: relative;
+            width: 90%;
+            max-width: 800px;
+            /* Max width for larger screens */
+            height: 400px;
+            border: 2px solid #333;
+            background-color: #ffffff;
+            overflow: hidden;
+            /* Keep elements inside */
+            margin-bottom: 15px;
+        }
+
+        canvas {
+            display: block;
+            background-color: #e0f7ff;
+            /* Light blue background */
+        }
+
+        #controlsContainer {
+            display: flex;
+            flex-wrap: wrap;
+            /* Allow controls to wrap on smaller screens */
+            justify-content: center;
+            align-items: flex-start;
+            /* Align items at the top */
+            gap: 20px;
+            /* Spacing between control groups */
+            padding: 15px;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            width: 90%;
+            max-width: 800px;
+            /* Match canvas width */
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 150px;
+            /* Ensure groups have some width */
+        }
+
+        .control-group label,
+        .control-group span {
+            margin-bottom: 5px;
+            font-size: 0.9em;
+            text-align: center;
+        }
+
+        .control-group input[type="range"] {
+            width: 120px;
+        }
+
+        .control-group input[type="checkbox"] {
+            margin-top: 5px;
+        }
+
+        button {
+            padding: 10px 15px;
+            /* Slightly smaller padding */
+            font-size: 0.9em;
+            /* Slightly smaller font */
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            margin: 5px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        #explanationBox {
+            width: 90%;
+            max-width: 800px;
+            /* Match canvas width */
+            text-align: center;
+            margin-bottom: 15px;
+            background-color: #fffacd;
+            /* Lemon chiffon */
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 0.9em;
+            color: #333;
+        }
+
+        .warning {
+            color: #d9534f;
+            /* Reddish color for warning */
+            font-weight: bold;
+        }
+
+        strong.u235 {
+            color: #28a745;
+        }
+
+        /* Green */
+        strong.u238 {
+            color: #6c757d;
+        }
+
+        /* Grey */
+        strong.product {
+            color: #fd7e14;
+        }
+
+        /* Orange */
+    </style>
+</head>
+
+<body>
+
+    <h1>Nuclear Fission (Chain Reaction Simulation)</h1>
+
+    <div id="explanationBox">
+        This animation shows a simplified model. An "electron gun" fires a particle.
+        <br>➡️ If it hits <strong class="u235">Uranium-235</strong> (Green), the atom splits, releasing <strong
+            class="product">fission products</strong> (Orange).
+        <br>➡️ If a <strong class="product">fission product</strong> hits another <strong class="u235">U-235</strong>
+        atom, it causes *another* split (chain reaction!).
+        <br>➡️ If the initial particle or a <strong class="product">fission product</strong> hits <strong
+            class="u238">Uranium-238</strong> (Grey), it's absorbed (no fission/chain reaction).
+        <br><span class="warning">Note:</span> Real fission uses NEUTRONS and releases energy. This is simplified for
+        illustration. Adjust atom counts to see the chain reaction!
+    </div>
+
+    <div id="simulationContainer">
+        <canvas id="fissionCanvas"></canvas>
+    </div>
+
+    <div id="controlsContainer">
+        <!-- Manual Fire/Reset Group -->
+        <div class="control-group">
+            <span>Manual Control</span>
+            <button id="fireButton">Fire Electron</button>
+            <button id="resetButton">Reset Simulation</button>
+        </div>
+
+        <!-- Auto Fire Group -->
+        <div class="control-group">
+            <label for="autoFireCheckbox">Auto Fire</label>
+            <input type="checkbox" id="autoFireCheckbox">
+            <label for="fireRateSlider">Rate (<span id="fireRateValue">1</span> e/sec)</label>
+            <input type="range" id="fireRateSlider" min="0.2" max="10" step="0.1" value="1">
+        </div>
+
+        <!-- Atom Count Group -->
+        <div class="control-group">
+            <label for="u235Slider">U-235 Atoms: <span id="u235Value">4</span></label>
+            <input type="range" id="u235Slider" min="0" max="25" step="1" value="8"> <!-- Increased max -->
+            <label for="u238Slider">U-238 Atoms: <span id="u238Value">4</span></label>
+            <input type="range" id="u238Slider" min="0" max="25" step="1" value="4"> <!-- Increased max -->
+        </div>
+    </div>
+
+
+    <script>
+        const canvas = document.getElementById('fissionCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('simulationContainer');
+
+        // Control Elements
+        const fireButton = document.getElementById('fireButton');
+        const resetButton = document.getElementById('resetButton');
+        const autoFireCheckbox = document.getElementById('autoFireCheckbox');
+        const fireRateSlider = document.getElementById('fireRateSlider');
+        const fireRateValueSpan = document.getElementById('fireRateValue');
+        const u235Slider = document.getElementById('u235Slider');
+        const u235ValueSpan = document.getElementById('u235Value');
+        const u238Slider = document.getElementById('u238Slider');
+        const u238ValueSpan = document.getElementById('u238Value');
+
+        let canvasWidth, canvasHeight;
+
+        // --- Configuration ---
+        const electronGun = { x: 10, width: 40, height: 30, color: '#333' }; // y set in resize
+        const electronConfig = { radius: 5, speed: 6, color: '#007bff' }; // Blue, slightly faster
+        const atomConfig = {
+            minRadius: 16, // Smaller to fit more
+            maxRadius: 20,
+            u235Color: '#28a745', // Green
+            u238Color: '#6c757d', // Grey
+            labelColor: '#ffffff',
+            font: 'bold 11px sans-serif', // Smaller font
+            maxSpeed: 0.4 // Slower float
+        };
+        const fissionProductConfig = {
+            radius: 6,          // Fission products are smaller
+            speed: 2.5,         // Slightly faster products
+            color: '#fd7e14',   // Orange
+            lifetime: 150,      // Slightly longer lifetime (2.5s at 60fps)
+            splitCount: 2       // How many products released per fission event
+        };
+
+        // --- State ---
+        let electron = null; // { x, y, active }
+        let atoms = []; // { id, x, y, dx, dy, radius, type ('U235'/'U238'), color, label } - Added ID
+        let fissionProducts = []; // { id, x, y, dx, dy, lifetime } - Added ID
+        let animationFrameId = null;
+        let nextId = 0; // Simple ID generator for elements
+
+        // Controllable State
+        let autoFire = false;
+        let fireRateHz = 1; // Electrons per second
+        let framesPerShot = 60; // Calculated from fireRateHz (assuming ~60fps)
+        let frameCounter = 0; // Counter for auto-firing
+        let numU235 = 8; // Default to more U235 to see chain reaction
+        let numU238 = 4;
+
+        // --- Utility Functions ---
+        function getNextId() {
+            return nextId++;
+        }
+
+        function getRandom(min, max) {
+            return Math.random() * (max - min) + min;
+        }
+
+        function distance(x1, y1, x2, y2) {
+            const dx = x1 - x2;
+            const dy = y1 - y2;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        // --- Initialization ---
+        function createAtom(type) {
+            const radius = getRandom(atomConfig.minRadius, atomConfig.maxRadius);
+            const color = type === 'U235' ? atomConfig.u235Color : atomConfig.u238Color;
+            const label = type === 'U235' ? '235' : '238';
+            const id = getNextId();
+
+            let x, y, validPosition, attempts = 0;
+            const maxAttempts = 50;
+            do {
+                validPosition = true;
+                x = getRandom(canvasWidth * 0.4, canvasWidth - radius - 10);
+                y = getRandom(radius + 10, canvasHeight - radius - 10);
+                for (const otherAtom of atoms) {
+                    if (distance(x, y, otherAtom.x, otherAtom.y) < radius + otherAtom.radius + 5) {
+                        validPosition = false;
+                        break;
+                    }
+                }
+                attempts++;
+            } while (!validPosition && attempts < maxAttempts);
+
+            if (attempts >= maxAttempts) {
+                console.warn("Could not find non-overlapping position for an atom.");
+                x = getRandom(canvasWidth * 0.4, canvasWidth - radius - 10);
+                y = getRandom(radius + 10, canvasHeight - radius - 10);
+            }
+
+            return {
+                id, x, y,
+                dx: getRandom(-atomConfig.maxSpeed, atomConfig.maxSpeed),
+                dy: getRandom(-atomConfig.maxSpeed, atomConfig.maxSpeed),
+                radius, type, color, label
+            };
+        }
+
+        // Function to create fission products (used by electron hit and chain reaction)
+        function createFission(x, y) {
+            for (let i = 0; i < fissionProductConfig.splitCount; i++) {
+                const angle = Math.random() * Math.PI * 2; // Random direction for each product
+                fissionProducts.push({
+                    id: getNextId(),
+                    x: x, y: y,
+                    dx: Math.cos(angle) * fissionProductConfig.speed,
+                    dy: Math.sin(angle) * fissionProductConfig.speed,
+                    lifetime: fissionProductConfig.lifetime
+                });
+            }
+        }
+
+
+        function resetSimulation() {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
+            console.log(`Resetting with ${numU235} U235 and ${numU238} U238`);
+            nextId = 0; // Reset ID counter
+
+            electron = null;
+            atoms = [];
+            fissionProducts = [];
+            frameCounter = 0;
+
+            for (let i = 0; i < numU235; i++) atoms.push(createAtom('U235'));
+            for (let i = 0; i < numU238; i++) atoms.push(createAtom('U238'));
+
+            fireButton.disabled = autoFire || (electron && electron.active);
+            gameLoop();
+        }
+
+
+        // --- Drawing Functions ---
+        function drawGun() {
+            ctx.fillStyle = electronGun.color;
+            ctx.fillRect(electronGun.x, electronGun.y, electronGun.width, electronGun.height);
+            ctx.fillStyle = '#555';
+            ctx.fillRect(electronGun.x + electronGun.width, electronGun.y + electronGun.height / 2 - 3, 10, 6);
+        }
+
+        function drawElectron() {
+            if (electron && electron.active) {
+                ctx.fillStyle = electronConfig.color;
+                ctx.beginPath();
+                ctx.arc(electron.x, electron.y, electronConfig.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function drawAtoms() {
+            atoms.forEach(atom => {
+                ctx.fillStyle = atom.color;
+                ctx.beginPath();
+                ctx.arc(atom.x, atom.y, atom.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = atomConfig.labelColor;
+                ctx.font = atomConfig.font;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(atom.label, atom.x, atom.y);
+            });
+        }
+
+        function drawFissionProducts() {
+            fissionProducts.forEach(fp => {
+                const alpha = Math.max(0, fp.lifetime / fissionProductConfig.lifetime);
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = fissionProductConfig.color;
+                ctx.beginPath();
+                ctx.arc(fp.x, fp.y, fissionProductConfig.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+            });
+        }
+
+        // --- Update Functions ---
+        function updateElectron() {
+            if (electron && electron.active) {
+                electron.x += electronConfig.speed;
+                if (electron.x > canvasWidth + electronConfig.radius) {
+                    electron.active = false;
+                    if (!autoFire) fireButton.disabled = false;
+                }
+            }
+        }
+
+        function updateAtoms() {
+            atoms.forEach(atom => {
+                atom.x += atom.dx;
+                atom.y += atom.dy;
+                if (atom.x - atom.radius < canvasWidth * 0.35 || atom.x + atom.radius > canvasWidth) {
+                    atom.dx *= -1;
+                    atom.x = Math.max(atom.x, canvasWidth * 0.35 + atom.radius);
+                    atom.x = Math.min(atom.x, canvasWidth - atom.radius);
+                }
+                if (atom.y - atom.radius < 0 || atom.y + atom.radius > canvasHeight) {
+                    atom.dy *= -1;
+                    atom.y = Math.max(atom.y, atom.radius);
+                    atom.y = Math.min(atom.y, canvasHeight - atom.radius);
+                }
+            });
+        }
+
+        function updateFissionProducts() {
+            // Use filter to create a new array excluding expired/out-of-bounds products
+            fissionProducts = fissionProducts.filter(fp => {
+                fp.x += fp.dx;
+                fp.y += fp.dy;
+                fp.lifetime--;
+                // Check bounds AND lifetime
+                return fp.lifetime > 0 && fp.x > -fissionProductConfig.radius && fp.x < canvasWidth + fissionProductConfig.radius && fp.y > -fissionProductConfig.radius && fp.y < canvasHeight + fissionProductConfig.radius;
+            });
+        }
+
+        function handleAutoFire() {
+            if (autoFire && (!electron || !electron.active)) {
+                frameCounter++;
+                if (frameCounter >= framesPerShot) {
+                    fireElectron();
+                    frameCounter = 0;
+                }
+            }
+        }
+
+        // --- Collision Detection ---
+
+        // Handles electron hitting an atom
+        function checkElectronAtomCollisions() {
+            if (!electron || !electron.active) return;
+
+            let hit = false;
+            for (let i = atoms.length - 1; i >= 0; i--) {
+                const atom = atoms[i];
+                const dist = distance(electron.x, electron.y, atom.x, atom.y);
+
+                if (dist < electronConfig.radius + atom.radius) {
+                    electron.active = false; // Electron disappears
+
+                    if (atom.type === 'U235') {
+                        createFission(atom.x, atom.y); // Fission!
+                        atoms.splice(i, 1); // Remove the U235 atom
+                    } else if (atom.type === 'U238') {
+                        atoms.splice(i, 1); // Remove the U238 atom (absorbed)
+                    }
+
+                    hit = true;
+                    break; // Electron can only hit one atom
+                }
+            }
+            if (hit && !autoFire) { // Re-enable manual fire ONLY if auto-fire is off AFTER a hit
+                fireButton.disabled = false;
+            }
+        }
+
+        // Handles fission product hitting an atom (CHAIN REACTION)
+        function checkProductAtomCollisions() {
+            let productsToRemove = new Set(); // Keep track of products that hit something
+            let atomsToRemove = new Set(); // Keep track of atoms that got hit
+            let fissionsToCreate = []; // Store locations for new fissions {x, y}
+
+            // Iterate through products and atoms to find collisions
+            for (const fp of fissionProducts) {
+                // Skip if this product already hit something this frame
+                if (productsToRemove.has(fp.id)) continue;
+
+                for (const atom of atoms) {
+                    // Skip if this atom was already hit this frame or by the electron
+                    if (atomsToRemove.has(atom.id)) continue;
+                    // Skip if this product already hit something this frame
+                    if (productsToRemove.has(fp.id)) continue; // Check again inside inner loop
+
+                    const dist = distance(fp.x, fp.y, atom.x, atom.y);
+
+                    if (dist < fissionProductConfig.radius + atom.radius) {
+                        // Collision detected!
+                        productsToRemove.add(fp.id); // Mark product for removal
+
+                        if (atom.type === 'U235') {
+                            // CHAIN REACTION! Mark atom for removal and schedule new fission
+                            atomsToRemove.add(atom.id);
+                            fissionsToCreate.push({ x: atom.x, y: atom.y });
+                        } else if (atom.type === 'U238') {
+                            // Product absorbed by U238, mark atom for removal
+                            atomsToRemove.add(atom.id);
+                        }
+                        // Break inner loop once a product hits an atom
+                        break;
+                    }
+                }
+            }
+
+            // Process removals and new fissions *after* checking all collisions for this frame
+            if (atomsToRemove.size > 0) {
+                atoms = atoms.filter(atom => !atomsToRemove.has(atom.id));
+            }
+            if (productsToRemove.size > 0) {
+                fissionProducts = fissionProducts.filter(fp => !productsToRemove.has(fp.id));
+            }
+            if (fissionsToCreate.length > 0) {
+                fissionsToCreate.forEach(fission => createFission(fission.x, fission.y));
+            }
+        }
+
+
+        // --- Firing Logic ---
+        function fireElectron() {
+            if (!electron || !electron.active) {
+                electron = {
+                    id: getNextId(), // Give electron an ID too (though not strictly needed here)
+                    x: electronGun.x + electronGun.width + 10,
+                    y: electronGun.y + electronGun.height / 2,
+                    active: true
+                };
+                fireButton.disabled = true;
+                return true;
+            }
+            return false;
+        }
+
+        // --- Animation Loop ---
+        function gameLoop() {
+            // Clear canvas
+            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+            // Update elements
+            updateElectron();
+            updateAtoms();
+            updateFissionProducts(); // Updates position and removes expired/OOB
+
+            // Handle Auto Firing
+            handleAutoFire();
+
+            // Check for collisions
+            checkElectronAtomCollisions(); // Electron hits atom first
+            checkProductAtomCollisions(); // Then check product hits atom (chain reaction)
+
+            // Draw elements
+            drawGun();
+            drawAtoms();
+            drawFissionProducts();
+            drawElectron();
+
+            // Request next frame
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        // --- Event Listeners ---
+        fireButton.addEventListener('click', () => {
+            if (!autoFire) fireElectron();
+        });
+
+        resetButton.addEventListener('click', resetSimulation);
+
+        autoFireCheckbox.addEventListener('change', (e) => {
+            autoFire = e.target.checked;
+            frameCounter = 0;
+            fireButton.disabled = autoFire || (electron && electron.active);
+            if (!autoFire && (!electron || !electron.active)) {
+                fireButton.disabled = false;
+            }
+        });
+
+        fireRateSlider.addEventListener('input', (e) => {
+            fireRateHz = parseFloat(e.target.value);
+            fireRateValueSpan.textContent = fireRateHz.toFixed(1);
+            framesPerShot = Math.max(1, Math.round(60 / fireRateHz));
+            frameCounter = 0;
+        });
+
+        u235Slider.addEventListener('input', (e) => {
+            numU235 = parseInt(e.target.value);
+            u235ValueSpan.textContent = numU235;
+            resetSimulation();
+        });
+
+        u238Slider.addEventListener('input', (e) => {
+            numU238 = parseInt(e.target.value);
+            u238ValueSpan.textContent = numU238;
+            resetSimulation();
+        });
+
+        // --- Resize Handling ---
+        function handleResize() {
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+
+            canvasWidth = container.clientWidth;
+            canvasHeight = container.clientHeight;
+            canvas.width = canvasWidth;
+            canvas.height = canvasHeight;
+
+            electronGun.y = canvasHeight / 2 - electronGun.height / 2;
+            framesPerShot = Math.max(1, Math.round(60 / fireRateHz));
+            resetSimulation();
+        }
+        window.addEventListener('resize', handleResize);
+
+        // --- Initial Setup ---
+        fireRateValueSpan.textContent = fireRateSlider.value;
+        u235ValueSpan.textContent = u235Slider.value; // Use slider default
+        u238ValueSpan.textContent = u238Slider.value; // Use slider default
+        fireRateHz = parseFloat(fireRateSlider.value);
+        numU235 = parseInt(u235Slider.value); // Read initial value
+        numU238 = parseInt(u238Slider.value); // Read initial value
+
+        handleResize(); // Initial setup and start
+
+    </script>
+
+</body>
+
+</html>
