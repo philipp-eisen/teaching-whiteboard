@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Falling Objects Animation</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            line-height: 1.6;
+            padding: 20px;
+            background-color: #f0f4f8;
+            color: #333;
+        }
+
+        h1,
+        h2 {
+            color: #0056b3;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #fff;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .explanation {
+            background-color: #e7f3fe;
+            border-left: 5px solid #2196F3;
+            padding: 10px 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+
+        #animation-area {
+            position: relative;
+            width: 90%;
+            max-width: 400px;
+            height: 400px;
+            /* Fixed height for the drop */
+            background-color: #e0f2f7;
+            /* Light sky blue */
+            margin: 20px auto;
+            border: 1px solid #ccc;
+            overflow: hidden;
+            /* Keep objects inside */
+            border-radius: 5px;
+        }
+
+        #ground {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 20px;
+            background-color: #795548;
+            /* Brown for ground */
+            border-top: 2px solid #5d4037;
+        }
+
+        .falling-object {
+            position: absolute;
+            /* Will be positioned by JS */
+            transition: bottom 0.1s linear;
+            /* Smooth out micro-adjustments, but fall driven by JS */
+        }
+
+        #object1 {
+            width: 60px;
+            height: 60px;
+            background-color: #f44336;
+            /* Red */
+            border-radius: 50%;
+            /* Make it a circle */
+            left: 30%;
+            /* bottom position set by JS */
+        }
+
+        #object2 {
+            width: 30px;
+            height: 30px;
+            background-color: #4CAF50;
+            /* Green */
+            /* Square shape */
+            left: 60%;
+            /* bottom position set by JS */
+        }
+
+        .controls {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 1em;
+            margin: 5px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .slider-container {
+            margin-top: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .slider-container label {
+            white-space: nowrap;
+        }
+
+        input[type="range"] {
+            width: 50%;
+            max-width: 200px;
+            cursor: pointer;
+        }
+
+        #heightValue {
+            font-weight: bold;
+            min-width: 40px;
+            /* Prevent layout shifts */
+            text-align: right;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>Why do things fall?</h1>
+        <div class="explanation">
+            <p>Everything near the Earth is pulled towards it by a force called <strong>gravity</strong>. If there's
+                nothing holding an object up (like a table or your hand), gravity will make it fall towards the ground.
+            </p>
+            <p><strong>Key Idea:</strong> Surprisingly, if we ignore air resistance (how air pushes against moving
+                things), objects of different sizes and weights fall at the <strong>same rate</strong>! Watch the
+                animation below.</p>
+        </div>
+
+        <h2>Falling Objects Simulation</h2>
+
+        <div id="animation-area">
+            <div id="object1" class="falling-object"></div>
+            <div id="object2" class="falling-object"></div>
+            <div id="ground"></div>
+        </div>
+
+        <div class="controls">
+            <div class="slider-container">
+                <label for="heightSlider">Start Height:</label>
+                <input type="range" id="heightSlider" name="height" min="100" max="380" value="350">
+                <span id="heightValue">350px</span>
+            </div>
+            <button id="dropButton">Drop Objects</button>
+            <button id="resetButton" disabled>Reset</button>
+        </div>
+
+        <div class="explanation" style="margin-top: 20px; border-left-color: #ff9800;">
+            <p><strong>Try This:</strong></p>
+            <ul>
+                <li>Click "Drop Objects" to see the red ball and green square fall. Notice they hit the ground at the
+                    same time.</li>
+                <li>Click "Reset".</li>
+                <li>Use the slider to change the starting height.</li>
+                <li>Drop them again. Do they still hit the ground together?</li>
+            </ul>
+            <p><em>(Note: In real life, very light objects like feathers fall slower because air resistance affects them
+                    more. This animation ignores air resistance to show the basic principle of gravity.)</em></p>
+        </div>
+    </div>
+
+    <script>
+        const object1 = document.getElementById('object1');
+        const object2 = document.getElementById('object2');
+        const ground = document.getElementById('ground');
+        const animationArea = document.getElementById('animation-area');
+        const dropButton = document.getElementById('dropButton');
+        const resetButton = document.getElementById('resetButton');
+        const heightSlider = document.getElementById('heightSlider');
+        const heightValueSpan = document.getElementById('heightValue');
+
+        // --- Configuration ---
+        const groundHeight = ground.offsetHeight; // Height of the ground div
+        const acceleration = 0.4; // Simulated gravity effect (pixels per frame squared) - lower is slower
+        let initialHeight = parseInt(heightSlider.value); // Starting height from ground (px)
+
+        // --- State Variables ---
+        let velocity1 = 0;
+        let velocity2 = 0;
+        let position1 = 0; // Position relative to initial height (pixels from top)
+        let position2 = 0; // Position relative to initial height (pixels from top)
+        let animationId = null; // To store the requestAnimationFrame ID
+
+        // --- Functions ---
+
+        function updateHeightDisplay() {
+            heightValueSpan.textContent = `${heightSlider.value}px`;
+        }
+
+        function setObjectInitialPositions() {
+            initialHeight = parseInt(heightSlider.value);
+            // Set bottom position relative to the ground div
+            object1.style.bottom = `${initialHeight}px`;
+            object2.style.bottom = `${initialHeight}px`;
+
+            // Reset internal physics state
+            velocity1 = 0;
+            velocity2 = 0;
+            // Position is calculated relative to the start during animation
+        }
+
+        function resetAnimation() {
+            if (animationId) {
+                cancelAnimationFrame(animationId); // Stop any ongoing animation
+                animationId = null;
+            }
+            setObjectInitialPositions(); // Put objects back at the start height
+            dropButton.disabled = false;
+            resetButton.disabled = true;
+            heightSlider.disabled = false; // Re-enable slider on reset
+            console.log("Animation Reset");
+        }
+
+        function animateFall() {
+            // Update velocities based on acceleration
+            velocity1 += acceleration;
+            velocity2 += acceleration;
+
+            // Get current bottom positions
+            let currentBottom1 = parseFloat(object1.style.bottom);
+            let currentBottom2 = parseFloat(object2.style.bottom);
+
+            // Calculate new bottom positions
+            let newBottom1 = currentBottom1 - velocity1;
+            let newBottom2 = currentBottom2 - velocity2;
+
+            // Check for ground collision (bottom edge reaches ground top edge)
+            let hitGround1 = newBottom1 <= groundHeight;
+            let hitGround2 = newBottom2 <= groundHeight;
+
+            if (hitGround1 || hitGround2) {
+                // Snap both to ground if either hits (ensures simultaneous landing visually)
+                object1.style.bottom = `${groundHeight}px`;
+                object2.style.bottom = `${groundHeight}px`;
+
+                cancelAnimationFrame(animationId); // Stop animation
+                animationId = null;
+                resetButton.disabled = false; // Enable reset button
+                console.log("Landed");
+            } else {
+                // Update positions
+                object1.style.bottom = `${newBottom1}px`;
+                object2.style.bottom = `${newBottom2}px`;
+
+                // Request next frame
+                animationId = requestAnimationFrame(animateFall);
+            }
+        }
+
+        function startDrop() {
+            console.log("Starting Drop from height:", initialHeight);
+            dropButton.disabled = true;
+            resetButton.disabled = true; // Disable reset until animation finishes
+            heightSlider.disabled = true; // Disable slider during animation
+
+            // Ensure objects are at the correct start position before animating
+            setObjectInitialPositions();
+
+            // Reset velocities just before starting
+            velocity1 = 0;
+            velocity2 = 0;
+
+            // Start the animation loop
+            animationId = requestAnimationFrame(animateFall);
+        }
+
+        // --- Event Listeners ---
+        dropButton.addEventListener('click', startDrop);
+        resetButton.addEventListener('click', resetAnimation);
+        heightSlider.addEventListener('input', () => {
+            updateHeightDisplay();
+            // If not animating, reset positions immediately to reflect slider change
+            if (!animationId) {
+                setObjectInitialPositions();
+            }
+        });
+
+        // --- Initial Setup ---
+        // Set max height for slider based on container minus a buffer
+        const containerHeight = animationArea.clientHeight;
+        const buffer = 20; // Space from top
+        const maxSliderHeight = containerHeight - Math.max(object1.offsetHeight, object2.offsetHeight) - groundHeight - buffer;
+        heightSlider.max = maxSliderHeight;
+        // Adjust initial value if default is too high
+        if (parseInt(heightSlider.value) > maxSliderHeight) {
+            heightSlider.value = maxSliderHeight;
+        }
+        initialHeight = parseInt(heightSlider.value);
+        updateHeightDisplay(); // Show initial value
+        setObjectInitialPositions(); // Place objects initially
+
+        console.log("Animation ready. Initial height:", initialHeight);
+
+    </script>
+
+</body>
+
+</html>

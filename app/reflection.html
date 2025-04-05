@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reflection of Light</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f0f0f0;
+            flex-direction: column;
+            /* Center canvas and controls */
+        }
+
+        #simulationContainer {
+            background-color: #fff;
+            border: 1px solid #ccc;
+            box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            /* Center controls below canvas */
+        }
+
+        canvas {
+            display: block;
+            /* Remove extra space below canvas */
+            margin: 0 auto 20px auto;
+            /* Center canvas and add space below */
+            background-color: #e0f7fa;
+            /* Light blue background for contrast */
+            border: 1px solid #aaa;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-around;
+            /* Space out controls */
+            flex-wrap: wrap;
+            /* Allow controls to wrap on smaller screens */
+            gap: 20px;
+            /* Add space between control groups */
+            max-width: 600px;
+            /* Limit width of controls */
+            margin: 0 auto;
+            /* Center controls */
+        }
+
+        .control-group {
+            text-align: center;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        input[type="range"] {
+            width: 200px;
+            cursor: pointer;
+        }
+
+        span {
+            display: inline-block;
+            min-width: 40px;
+            /* Ensure consistent width for values */
+            font-weight: bold;
+            color: #0056b3;
+        }
+
+        p {
+            margin-top: 15px;
+            font-size: 0.9em;
+            color: #555;
+            max-width: 600px;
+            text-align: left;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="simulationContainer">
+        <h1>Reflection of Light</h1>
+        <canvas id="reflectionCanvas" width="600" height="400"></canvas>
+        <div class="controls">
+            <div class="control-group">
+                <label for="angleSlider">Incoming Ray Angle:</label>
+                <input type="range" id="angleSlider" min="-70" max="70" value="30" step="1">
+                <span id="angleValue">30</span>°
+                <p>(Angle relative to horizontal)</p>
+            </div>
+            <div class="control-group">
+                <label for="curvatureSlider">Mirror Curvature:</label>
+                <input type="range" id="curvatureSlider" min="-10" max="10" value="0" step="1">
+                <span id="curvatureValue">Flat</span>
+                <p>(Negative: Concave ⋃, Zero: Flat —, Positive: Convex ⋂)</p>
+            </div>
+        </div>
+        <p>
+            <strong>How it works:</strong>
+            The light ray (yellow) hits the mirror. The dashed line is the 'Normal' (perpendicular to the mirror surface
+            at the hit point).
+            The Law of Reflection says the angle the incoming ray makes with the normal (Angle of Incidence, θᵢ, blue
+            arc) is EQUAL to the angle the reflected ray (orange) makes with the normal (Angle of Reflection, θᵣ, red
+            arc).
+            Change the sliders to see how the mirror shape and incoming angle affect the reflection!
+        </p>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('reflectionCanvas');
+        const ctx = canvas.getContext('2d');
+        const angleSlider = document.getElementById('angleSlider');
+        const curvatureSlider = document.getElementById('curvatureSlider');
+        const angleValueSpan = document.getElementById('angleValue');
+        const curvatureValueSpan = document.getElementById('curvatureValue');
+
+        const canvasWidth = canvas.width;
+        const canvasHeight = canvas.height;
+
+        // Mirror properties
+        const mirrorY = canvasHeight * 0.8;
+        const mirrorWidth = 250; // Width of the flat mirror / chord length of curved mirror
+
+        function draw() {
+            // --- Get Slider Values ---
+            const angleDegrees = parseFloat(angleSlider.value); // Angle relative to horizontal
+            const curvatureFactor = parseFloat(curvatureSlider.value); // -10 (concave) to +10 (convex)
+
+            // Display slider values
+            angleValueSpan.textContent = angleDegrees;
+            let curvatureText = "Flat";
+            if (curvatureFactor < 0) curvatureText = `Concave (${curvatureFactor})`;
+            else if (curvatureFactor > 0) curvatureText = `Convex (${curvatureFactor})`;
+            curvatureValueSpan.textContent = curvatureText;
+
+            // --- Clear Canvas ---
+            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+            // --- Mirror Calculation ---
+            const mirrorCenterX = canvasWidth / 2;
+            let radius = Infinity; // For flat mirror
+            let arcCenter = { x: mirrorCenterX, y: 0 }; // Center of the circle for curved mirrors
+            let isConcave = false;
+            let isConvex = false;
+            let startAngle = 0, endAngle = 0; // For drawing arc
+
+            const baseRadius = 5000; // A base value to calculate radius from curvature
+
+            if (curvatureFactor !== 0) {
+                radius = baseRadius / Math.abs(curvatureFactor);
+                // Ensure radius is not too small to look reasonable
+                radius = Math.max(radius, mirrorWidth * 0.7); // Minimum radius based on width
+
+                if (curvatureFactor < 0) { // Concave
+                    isConcave = true;
+                    arcCenter.y = mirrorY + Math.sqrt(Math.max(0, radius * radius - (mirrorWidth / 2) ** 2));
+                } else { // Convex
+                    isConvex = true;
+                    arcCenter.y = mirrorY - Math.sqrt(Math.max(0, radius * radius - (mirrorWidth / 2) ** 2));
+                }
+
+                // Calculate arc angles (ensure correct orientation)
+                const angleOffset = Math.asin((mirrorWidth / 2) / radius);
+
+                if (isConcave) {
+                    startAngle = Math.PI + angleOffset;
+                    endAngle = Math.PI * 2 - angleOffset;
+                } else { // Convex
+                    startAngle = -angleOffset;
+                    endAngle = angleOffset;
+                }
+
+
+            }
+
+            // --- Draw Mirror ---
+            ctx.strokeStyle = '#000080'; // Dark blue
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            if (curvatureFactor === 0) { // Flat mirror
+                ctx.moveTo(mirrorCenterX - mirrorWidth / 2, mirrorY);
+                ctx.lineTo(mirrorCenterX + mirrorWidth / 2, mirrorY);
+            } else { // Curved mirror
+                // Adjust arc center y slightly if needed visually, ensure it connects to mirrorY at edges
+                let actualYOffset = Math.sqrt(Math.max(0, radius * radius - (mirrorWidth / 2) ** 2));
+                if (isConcave) arcCenter.y = mirrorY + actualYOffset;
+                else arcCenter.y = mirrorY - actualYOffset;
+
+                // Clamp angles to prevent full circle drawing if radius gets very small
+                let safeStartAngle = startAngle;
+                let safeEndAngle = endAngle;
+
+                // Draw the arc
+                ctx.arc(arcCenter.x, arcCenter.y, radius, safeStartAngle, safeEndAngle);
+            }
+            ctx.stroke();
+
+            // --- Incoming Ray Calculation ---
+            const rayAngleRad = angleDegrees * Math.PI / 180;
+            const rayStartX = 50; // Start ray from left side
+            const rayStartY = 50;
+
+            // Define incoming ray as a line segment starting far away
+            const rayVector = { x: Math.cos(rayAngleRad), y: Math.sin(rayAngleRad) };
+            const rayLineP1 = { x: rayStartX, y: rayStartY };
+            const rayLineP2 = { x: rayStartX + rayVector.x * canvasWidth * 2, y: rayStartY + rayVector.y * canvasWidth * 2 }; // Extend far
+
+            // --- Calculate Point of Incidence (POI) ---
+            let poi = null;
+            const mirrorLeft = mirrorCenterX - mirrorWidth / 2;
+            const mirrorRight = mirrorCenterX + mirrorWidth / 2;
+
+            if (curvatureFactor === 0) { // Flat mirror intersection
+                // Check intersection with the horizontal line segment y = mirrorY
+                const t = (mirrorY - rayLineP1.y) / rayVector.y;
+                if (t > 0) { // Intersection point is along the ray's direction
+                    const intersectX = rayLineP1.x + t * rayVector.x;
+                    if (intersectX >= mirrorLeft && intersectX <= mirrorRight) {
+                        poi = { x: intersectX, y: mirrorY };
+                    }
+                }
+            } else { // Curved mirror intersection (line-circle)
+                const dx = rayLineP2.x - rayLineP1.x;
+                const dy = rayLineP2.y - rayLineP1.y;
+                const dr2 = dx * dx + dy * dy;
+                const D = (rayLineP1.x - arcCenter.x) * (rayLineP2.y - arcCenter.y) - (rayLineP2.x - arcCenter.x) * (rayLineP1.y - arcCenter.y);
+
+                const delta = radius * radius * dr2 - D * D;
+
+                if (delta >= 0) { // Ray intersects the circle
+                    const sqrtDelta = Math.sqrt(delta);
+                    const signDy = dy < 0 ? -1 : 1;
+
+                    // Calculate two potential intersection points
+                    const t1 = (D * dy + signDy * dx * sqrtDelta) / dr2;
+                    const t2 = (D * dy - signDy * dx * sqrtDelta) / dr2;
+                    const x1 = (D * dy + signDy * dx * sqrtDelta) / dr2 + arcCenter.x; // This formula seems off, simpler way:
+                    const ix1 = arcCenter.x + (D * dy + signDy * dx * sqrtDelta) / dr2;
+                    const iy1 = arcCenter.y + (-D * dx + Math.abs(dy) * sqrtDelta) / dr2;
+
+                    const ix2 = arcCenter.x + (D * dy - signDy * dx * sqrtDelta) / dr2;
+                    const iy2 = arcCenter.y + (-D * dx - Math.abs(dy) * sqrtDelta) / dr2;
+
+                    // Simpler approach using parametric line equation t value
+                    const fx = rayLineP1.x - arcCenter.x;
+                    const fy = rayLineP1.y - arcCenter.y;
+                    const a = dx * dx + dy * dy;
+                    const b = 2 * (fx * dx + fy * dy);
+                    const c = fx * fx + fy * fy - radius * radius;
+                    const discriminant = b * b - 4 * a * c;
+
+                    if (discriminant >= 0) {
+                        const t_intersect1 = (-b + Math.sqrt(discriminant)) / (2 * a);
+                        const t_intersect2 = (-b - Math.sqrt(discriminant)) / (2 * a);
+
+                        let valid_t = [];
+                        if (t_intersect1 > 0.001) valid_t.push(t_intersect1); // Check if intersection is 'forward' along the ray
+                        if (t_intersect2 > 0.001) valid_t.push(t_intersect2);
+
+                        if (valid_t.length > 0) {
+                            const t = Math.min(...valid_t); // Choose the closest intersection point
+                            const intersectX = rayLineP1.x + t * dx;
+                            const intersectY = rayLineP1.y + t * dy;
+
+                            // Check if intersection is within the mirror bounds (approx)
+                            if (intersectX >= mirrorLeft - 5 && intersectX <= mirrorRight + 5) { // Allow slight tolerance
+                                // Check if the point is roughly on the correct side of the arc center Y
+                                const checkConcave = isConcave && intersectY > arcCenter.y - radius - 5; // Point should be below center for concave
+                                const checkConvex = isConvex && intersectY < arcCenter.y + radius + 5; // Point should be above center for convex
+
+
+                                // More robust check: ensure point is near the mirror Y level
+                                if (Math.abs(intersectY - mirrorY) < radius * (1 - Math.cos(Math.asin(mirrorWidth / (2 * radius))))) {
+                                    poi = { x: intersectX, y: intersectY };
+                                }
+
+
+                            }
+                        }
+                    }
+                }
+            }
+
+
+            // If no POI calculated (e.g., ray misses mirror segment), stop drawing rays
+            if (!poi) {
+                // Draw incoming ray until it hits canvas edge or mirror plane just in case
+                ctx.strokeStyle = '#FFD700'; // Gold
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(rayLineP1.x, rayLineP1.y);
+                // Find intersection with canvas boundaries or mirror Y line
+                let endX = rayLineP2.x;
+                let endY = rayLineP2.y;
+                if (rayVector.y > 0 && mirrorY < canvasHeight) { // Hits below mirror line potentially
+                    const t_mirror = (mirrorY - rayLineP1.y) / rayVector.y;
+                    if (t_mirror > 0) {
+                        endX = rayLineP1.x + t_mirror * rayVector.x;
+                        endY = mirrorY;
+                    }
+                }
+                ctx.lineTo(endX, endY);
+                ctx.stroke();
+                console.log("Ray missed mirror segment or calculation failed.");
+                return; // Stop if no valid POI
+            }
+
+
+            // --- Draw Incoming Ray ---
+            ctx.strokeStyle = '#FFD700'; // Gold
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(rayStartX, rayStartY);
+            ctx.lineTo(poi.x, poi.y);
+            ctx.stroke();
+
+            // Draw POI marker
+            ctx.fillStyle = 'red';
+            ctx.beginPath();
+            ctx.arc(poi.x, poi.y, 4, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // --- Calculate Normal ---
+            let normalAngleRad = Math.PI / 2; // Vertical for flat mirror initially
+            if (curvatureFactor === 0) { // Flat horizontal mirror
+                normalAngleRad = -Math.PI / 2; // Pointing upwards
+            } else { // Curved mirror
+                // Normal points from POI away from arcCenter for convex, towards arcCenter for concave is wrong.
+                // Normal always points from arcCenter through POI.
+                normalAngleRad = Math.atan2(poi.y - arcCenter.y, poi.x - arcCenter.x);
+            }
+
+            // --- Draw Normal ---
+            const normalLength = 60;
+            ctx.strokeStyle = '#888888'; // Grey
+            ctx.lineWidth = 1;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(poi.x, poi.y);
+            ctx.lineTo(poi.x + normalLength * Math.cos(normalAngleRad), poi.y + normalLength * Math.sin(normalAngleRad));
+            ctx.stroke();
+            ctx.setLineDash([]); // Reset dash pattern
+
+            // --- Calculate Angles ---
+            // Angle of incoming ray vector (relative to positive x-axis)
+            const incomingAngleGlobalRad = Math.atan2(rayVector.y, rayVector.x);
+
+            // Angle of normal vector (relative to positive x-axis) - already have normalAngleRad
+
+            // Angle of incidence (theta_i) - angle between incoming ray and NORMAL
+            // Use dot product formula: cos(theta) = (v1 . v2) / (|v1| * |v2|)
+            // Or simpler: difference between angles, ensuring result is acute (0 to pi/2)
+            let angleIncidenceRad = incomingAngleGlobalRad - normalAngleRad;
+            // Adjust angle difference to be in range [-PI, PI]
+            angleIncidenceRad = Math.atan2(Math.sin(angleIncidenceRad), Math.cos(angleIncidenceRad));
+
+            // We want the acute angle between the ray *direction* and the normal *line*
+            // If ray comes "from above" normal, use PI - angle. If angle > PI/2 adjust.
+            // Let's use vector reflection: r = d - 2 * (d . n) * n
+            // Or calculate angle relative to normal properly:
+            // Vector *towards* POI:
+            const incomingVec = { x: poi.x - rayStartX, y: poi.y - rayStartY };
+            const normIncoming = Math.sqrt(incomingVec.x ** 2 + incomingVec.y ** 2);
+            incomingVec.x /= normIncoming;
+            incomingVec.y /= normIncoming;
+
+            const normalVec = { x: Math.cos(normalAngleRad), y: Math.sin(normalAngleRad) };
+
+            // Dot product for angle calculation
+            const dotProduct = incomingVec.x * normalVec.x + incomingVec.y * normalVec.y;
+            // Clamp dot product to avoid Math.acos errors due to precision
+            const clampedDot = Math.max(-1.0, Math.min(1.0, dotProduct));
+            let angleBetween = Math.acos(clampedDot); // Angle between incoming ray vector and normal vector
+
+            // This gives the angle between the two vectors (0 to PI). We need the angle of incidence,
+            // which is typically measured from the ray to the normal, often as an acute angle.
+            // If the incoming ray points "into" the hemisphere defined by the normal, angle is > PI/2.
+            // Incidence angle is PI - angleBetween if angleBetween > PI/2
+            angleIncidenceRad = angleBetween > Math.PI / 2 ? Math.PI - angleBetween : angleBetween;
+
+            const angleIncidenceDeg = angleIncidenceRad * 180 / Math.PI;
+
+            // Law of Reflection: Angle of reflection = Angle of incidence
+            const angleReflectionRad = angleIncidenceRad;
+
+            // --- Calculate Reflected Ray ---
+            // The reflected ray angle is the incoming angle mirrored across the normal.
+            // Reflected angle = Normal angle + (Normal angle - Incoming angle global) = 2 * Normal - Incoming Global
+            // OR use vector reflection formula: r = d - 2*(d.n)*n where d is incoming direction vector
+            const d_dot_n = incomingVec.x * normalVec.x + incomingVec.y * normalVec.y;
+            const reflectVec = {
+                x: incomingVec.x - 2 * d_dot_n * normalVec.x,
+                y: incomingVec.y - 2 * d_dot_n * normalVec.y
+            };
+
+            // --- Draw Reflected Ray ---
+            const reflectionLength = 300;
+            ctx.strokeStyle = '#FFA500'; // Orange
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(poi.x, poi.y);
+            ctx.lineTo(poi.x + reflectionLength * reflectVec.x, poi.y + reflectionLength * reflectVec.y);
+            ctx.stroke();
+
+            // --- Draw Angle Arcs ---
+            const arcRadius = 30;
+            // Find angles for arcs (relative to normal)
+            const incomingAngleRelativeToNormal = Math.atan2(incomingVec.y, incomingVec.x) - normalAngleRad;
+            const reflectedAngleRelativeToNormal = Math.atan2(reflectVec.y, reflectVec.x) - normalAngleRad;
+
+            // Draw Incidence Arc (θᵢ) - blue
+            ctx.strokeStyle = 'blue';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            // Arc from incoming ray direction towards normal direction
+            // Need start/end angles relative to positive x-axis
+            const incomingGlobalAngle = Math.atan2(incomingVec.y, incomingVec.x);
+            let startArcInc = Math.min(incomingGlobalAngle, normalAngleRad);
+            let endArcInc = Math.max(incomingGlobalAngle, normalAngleRad);
+            // Handle wrap around PI -> -PI boundary if necessary (less likely here)
+            // Ensure arc sweeps the correct way - check relative angles
+            let sweepIncAngle = incomingGlobalAngle - normalAngleRad;
+            sweepIncAngle = Math.atan2(Math.sin(sweepIncAngle), Math.cos(sweepIncAngle)); // Normalize to -PI, PI
+
+            // Draw arc between the two angles relative to the x-axis
+            ctx.arc(poi.x, poi.y, arcRadius, incomingGlobalAngle, normalAngleRad, sweepIncAngle > 0); // Last param depends on direction
+            // Simpler: Draw between normal and incoming
+            let angle1 = normalAngleRad;
+            let angle2 = Math.atan2(incomingVec.y, incomingVec.x);
+            // Ensure angles are such that arc sweeps less than PI
+            if (Math.abs(angle1 - angle2) > Math.PI) {
+                if (angle1 < angle2) angle1 += 2 * Math.PI; else angle2 += 2 * Math.PI;
+            }
+            ctx.arc(poi.x, poi.y, arcRadius, angle1, angle2, angle1 > angle2); // Sweep direction might need adjustment
+            ctx.stroke();
+            // Label θᵢ
+            const labelPosInc = {
+                x: poi.x + (arcRadius + 10) * Math.cos(normalAngleRad + sweepIncAngle / 2), // Midpoint of arc
+                y: poi.y + (arcRadius + 10) * Math.sin(normalAngleRad + sweepIncAngle / 2)
+            };
+            // Adjust label angle based on normal angle direction
+            const textAngleInc = normalAngleRad + (angleIncidenceRad / 2 * (sweepIncAngle > 0 ? 1 : -1)); // Angle midway between normal and incoming
+            labelPosInc.x = poi.x + (arcRadius + 10) * Math.cos(textAngleInc);
+            labelPosInc.y = poi.y + (arcRadius + 10) * Math.sin(textAngleInc);
+
+            ctx.fillStyle = 'blue';
+            ctx.font = 'italic 12px sans-serif';
+            ctx.fillText(`θᵢ ≈ ${angleIncidenceDeg.toFixed(1)}°`, labelPosInc.x - 15, labelPosInc.y + 5);
+
+
+            // Draw Reflection Arc (θᵣ) - red
+            ctx.strokeStyle = 'red';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            // Arc from normal direction towards reflected ray direction
+            const reflectedGlobalAngle = Math.atan2(reflectVec.y, reflectVec.x);
+            let startArcRef = Math.min(reflectedGlobalAngle, normalAngleRad);
+            let endArcRef = Math.max(reflectedGlobalAngle, normalAngleRad);
+            let sweepRefAngle = reflectedGlobalAngle - normalAngleRad;
+            sweepRefAngle = Math.atan2(Math.sin(sweepRefAngle), Math.cos(sweepRefAngle)); // Normalize
+
+            angle1 = normalAngleRad;
+            angle2 = reflectedGlobalAngle;
+            if (Math.abs(angle1 - angle2) > Math.PI) {
+                if (angle1 < angle2) angle1 += 2 * Math.PI; else angle2 += 2 * Math.PI;
+            }
+            ctx.arc(poi.x, poi.y, arcRadius + 5, angle1, angle2, angle1 < angle2); // Sweep direction might need adjustment
+            ctx.stroke();
+            // Label θᵣ
+            const angleReflectionDeg = angleReflectionRad * 180 / Math.PI;
+            const textAngleRef = normalAngleRad + (angleReflectionRad / 2 * (sweepRefAngle > 0 ? 1 : -1)); // Angle midway between normal and reflected
+            const labelPosRef = {
+                x: poi.x + (arcRadius + 15) * Math.cos(textAngleRef),
+                y: poi.y + (arcRadius + 15) * Math.sin(textAngleRef)
+            };
+            ctx.fillStyle = 'red';
+            ctx.fillText(`θᵣ ≈ ${angleReflectionDeg.toFixed(1)}°`, labelPosRef.x - 15, labelPosRef.y + 5);
+
+
+            // --- Draw Center of Curvature (C) and Focal Point (F) ---
+            if (curvatureFactor !== 0) {
+                // Center of Curvature (C)
+                ctx.fillStyle = 'purple';
+                ctx.beginPath();
+                ctx.arc(arcCenter.x, arcCenter.y, 5, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.font = 'bold 12px sans-serif';
+                ctx.fillText('C', arcCenter.x + 8, arcCenter.y + 4);
+
+                // Focal Point (F) - halfway between mirror vertex and C
+                // Vertex approx mirrorY for small curvatures, more complex for large ones
+                // Approx vertex:
+                let vertexY = mirrorY;
+                if (isConcave) vertexY = arcCenter.y - radius;
+                if (isConvex) vertexY = arcCenter.y + radius;
+
+                const focalLength = radius / 2;
+                let focalPointY = 0;
+                if (isConcave) focalPointY = arcCenter.y - focalLength;
+                if (isConvex) focalPointY = arcCenter.y + focalLength; // Virtual focus behind mirror
+
+                const focalPointX = arcCenter.x; // Assuming symmetric mirror centered horizontally
+
+                ctx.fillStyle = 'green';
+                ctx.beginPath();
+                ctx.arc(focalPointX, focalPointY, 4, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.font = 'bold 12px sans-serif';
+                // Add bracket for virtual focus
+                const fText = isConvex ? '(F)' : 'F';
+                ctx.fillText(fText, focalPointX + 8, focalPointY + 4);
+            }
+
+
+        }
+
+        // --- Event Listeners ---
+        angleSlider.addEventListener('input', draw);
+        curvatureSlider.addEventListener('input', draw);
+
+        // --- Initial Draw ---
+        draw();
+
+    </script>
+
+</body>
+
+</html>
