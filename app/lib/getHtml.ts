@@ -4,7 +4,11 @@ import { createOpenAI } from '@ai-sdk/openai'
 import { CoreMessage, generateObject, generateText, UserContent } from 'ai'
 import { z } from 'zod'
 import { PreviewShape } from '../PreviewShape/PreviewShape'
-import { SYSTEM_PROMPT, USER_PROMPT, USER_PROMPT_WITH_PREVIOUS_DESIGN } from '../prompt'
+import {
+	ANIMATION_SYSTEM_PROMPT,
+	ANIMATION_USER_PROMPT,
+	ANIMATION_USER_PROMPT_WITH_PREVIOUS_DESIGN,
+} from '../animation-prompt'
 
 const openai = createOpenAI({
 	apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
@@ -40,7 +44,10 @@ export async function getHtmlFromAi({
 	// Add the prompt into
 	userContent.push({
 		type: 'text',
-		text: previousPreviews?.length > 0 ? USER_PROMPT_WITH_PREVIOUS_DESIGN : USER_PROMPT,
+		text:
+			previousPreviews?.length > 0
+				? ANIMATION_USER_PROMPT_WITH_PREVIOUS_DESIGN
+				: ANIMATION_USER_PROMPT,
 	})
 
 	// Add the image
@@ -92,21 +99,11 @@ export async function getHtmlFromAi({
 		},
 		seed: 42,
 		messages: [userMessage],
-		system: SYSTEM_PROMPT,
-	}
+		system: ANIMATION_SYSTEM_PROMPT,
+		schema: z.object({
+			html: z.string(),
+		}),
+	})
 
-	if (generationType === 'text') {
-		const result = await generateText({
-			...params,
-		})
-		return result.text
-	} else {
-		const result = await generateObject({
-			...params,
-			schema: z.object({
-				html: z.string(),
-			}),
-		})
-		return result.object.html
-	}
+	return result.object.html
 }
