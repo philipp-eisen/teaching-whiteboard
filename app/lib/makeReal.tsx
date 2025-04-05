@@ -33,9 +33,11 @@ export async function makeReal(editor: Editor, apiKey: string) {
 	const dataUrl = await blobToBase64(blob!)
 
 	// Get any previous previews among the selected shapes
-	const previousPreviews = selectedShapes.filter(
-		(shape) => shape.type === 'response'
-	) as PreviewShape[]
+  // We don't want to use previous previews for now
+	const previousPreviews: PreviewShape[] = []
+	// selectedShapes.filter(
+	// 	(shape) => shape.type === 'response'
+	// ) as PreviewShape[]
 
 	// Send everything to OpenAI and get some HTML back
 	try {
