@@ -53,7 +53,7 @@ export async function makeReal(editor: Editor, apiKey: string) {
 
 		console.log(sketch)
 
-		const html = await sketchToHTML(sketch)
+		const html = await sketchToHTML(sketch, dataUrl)
 
 		console.log(html)
 
@@ -74,6 +74,7 @@ export async function makeReal(editor: Editor, apiKey: string) {
 		console.log(`Response: ${html}`)
 	} catch (e) {
 		// If anything went wrong, delete the shape.
+		console.error(e)
 		editor.deleteShape(newShapeId)
 		throw e
 	}

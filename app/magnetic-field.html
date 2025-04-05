@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Magnetic Field Lines</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            background-color: #e8eaf6;
+            /* Lighter blue-grey background */
+            color: #333;
+            margin: 0;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+            color: #1a237e;
+            /* Darker blue */
+        }
+
+        p {
+            margin-bottom: 20px;
+            color: #555;
+            max-width: 650px;
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #fff;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        #controls {
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            /* Allow buttons to wrap on smaller screens */
+            justify-content: center;
+            gap: 12px;
+            /* Spacing between buttons */
+        }
+
+        button {
+            padding: 10px 18px;
+            font-size: 0.95em;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            border-radius: 6px;
+            background-color: #3f51b5;
+            /* Indigo */
+            color: white;
+            transition: background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        button:hover {
+            background-color: #303f9f;
+            /* Darker Indigo */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        button:active {
+            background-color: #283593;
+            /* Even darker */
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        button.remove {
+            background-color: #e53935;
+            /* Red */
+        }
+
+        button.remove:hover {
+            background-color: #c62828;
+            /* Darker Red */
+        }
+
+        button.remove:active {
+            background-color: #b71c1c;
+        }
+
+        button.clear {
+            background-color: #ffb300;
+            /* Amber */
+            color: #333;
+        }
+
+        button.clear:hover {
+            background-color: #ffa000;
+            /* Darker Amber */
+        }
+
+        button.clear:active {
+            background-color: #ff8f00;
+        }
+
+        canvas {
+            border: 1px solid #ccc;
+            background-color: #ffffff;
+            /* Keep canvas white for clarity */
+            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.05);
+            border-radius: 4px;
+            cursor: default;
+            /* Default cursor */
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Magnetic Field Lines</h1>
+    <p>
+        Magnets create invisible fields! We draw "field lines" (from North 'N' to South 'S') to visualize this.
+        Click and drag the poles (N or S) to move them. Use the buttons to add or remove poles and see how the field
+        changes.
+    </p>
+
+    <div class="container">
+        <div id="controls">
+            <button id="addNorth">Add North Pole (N)</button>
+            <button id="addSouth">Add South Pole (S)</button>
+            <button id="removeLast" class="remove">Remove Last Pole</button>
+            <button id="clearAll" class="clear">Clear All</button>
+        </div>
+
+        <canvas id="magneticCanvas" width="650" height="450"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('magneticCanvas');
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width;
+        const height = canvas.height;
+
+        let poles = [];
+        let poleIdCounter = 0;
+
+        // --- Interaction State ---
+        let isDragging = false;
+        let draggedPole = null;
+        let dragOffsetX = 0;
+        let dragOffsetY = 0;
+        let isHoveringPole = false;
+
+        // --- Configuration ---
+        const POLE_RADIUS = 18; // Slightly larger poles
+        const NORTH_COLOR_START = 'rgba(255, 80, 80, 1)';   // Brighter red start
+        const NORTH_COLOR_END = 'rgba(200, 0, 0, 1)';     // Darker red end
+        const SOUTH_COLOR_START = 'rgba(80, 80, 255, 1)';  // Brighter blue start
+        const SOUTH_COLOR_END = 'rgba(0, 0, 200, 1)';    // Darker blue end
+        const LINE_COLOR = 'rgba(30, 30, 30, 0.65)';       // Slightly darker, less transparent lines
+        const LINE_WIDTH = 1.2;
+        const LINES_PER_POLE = 18;
+        const STEP_SIZE = 4;       // Smaller steps for smoother lines
+        const MAX_STEPS = 250;     // More steps for potentially longer lines
+        const POLE_INFLUENCE_RADIUS_SQ = (POLE_RADIUS * 1.3) ** 2;
+        const MIN_DISTANCE_SQ = 7 * 7; // Adjusted min distance
+
+        // --- Pole Management ---
+        function addPole(type) {
+            const x = width / 2 + (Math.random() - 0.5) * width * 0.25;
+            const y = height / 2 + (Math.random() - 0.5) * height * 0.25;
+
+            // Prevent poles spawning too close to each other initially
+            let tooClose = false;
+            for (const p of poles) {
+                const dx = x - p.x;
+                const dy = y - p.y;
+                if (dx * dx + dy * dy < (POLE_RADIUS * 2.5) ** 2) {
+                    tooClose = true;
+                    break;
+                }
+            }
+            // If too close, try adding again recursively (with limit to prevent infinite loop)
+            if (tooClose && poles.length < 20) { // Limit recursion depth
+                addPole(type); // Try again
+                return;
+            }
+
+
+            poles.push({
+                id: poleIdCounter++,
+                x: x,
+                y: y,
+                type: type // 'N' or 'S'
+            });
+            draw();
+        }
+
+        function removeLastPole() {
+            if (poles.length > 0) {
+                poles.pop();
+                draw();
+            }
+        }
+
+        function clearAllPoles() {
+            poles = [];
+            draw();
+        }
+
+        // --- Drawing Functions ---
+        function drawPole(pole) {
+            const isBeingDragged = draggedPole && pole.id === draggedPole.id;
+
+            // Create gradient
+            const gradient = ctx.createRadialGradient(
+                pole.x, pole.y, POLE_RADIUS * 0.1, // Inner circle (lighter)
+                pole.x, pole.y, POLE_RADIUS * 1.1  // Outer circle (darker)
+            );
+            if (pole.type === 'N') {
+                gradient.addColorStop(0, NORTH_COLOR_START);
+                gradient.addColorStop(1, NORTH_COLOR_END);
+            } else {
+                gradient.addColorStop(0, SOUTH_COLOR_START);
+                gradient.addColorStop(1, SOUTH_COLOR_END);
+            }
+
+            ctx.beginPath();
+            ctx.arc(pole.x, pole.y, POLE_RADIUS, 0, Math.PI * 2);
+
+            // Add subtle shadow if dragging
+            if (isBeingDragged) {
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+                ctx.shadowBlur = 8;
+                ctx.shadowOffsetX = 3;
+                ctx.shadowOffsetY = 3;
+            }
+
+            ctx.fillStyle = gradient;
+            ctx.fill();
+
+            // Reset shadow for other elements
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
+
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)'; // Outline
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Draw label
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(pole.type, pole.x, pole.y);
+        }
+
+        function calculateFieldVector(x, y, excludePoleId = -1) { // Option to exclude a pole's influence (useful near source)
+            let totalVx = 0;
+            let totalVy = 0;
+
+            poles.forEach(pole => {
+                if (pole.id === excludePoleId) return; // Skip the excluded pole
+
+                const dx = x - pole.x;
+                const dy = y - pole.y;
+                let distSq = dx * dx + dy * dy;
+
+                if (distSq < MIN_DISTANCE_SQ) {
+                    distSq = MIN_DISTANCE_SQ; // Clamp minimum distance squared
+                }
+
+                const dist = Math.sqrt(distSq);
+                // Simple 1/r^2 influence, could add strength parameter later if needed
+                const influence = 500 / distSq; // Increased constant factor for stronger field effect
+
+                let factor = influence;
+                if (pole.type === 'S') {
+                    factor = -factor;
+                }
+
+                totalVx += (dx / dist) * factor;
+                totalVy += (dy / dist) * factor;
+            });
+
+            const totalMag = Math.sqrt(totalVx * totalVx + totalVy * totalVy);
+            if (totalMag === 0) {
+                return { vx: 0, vy: 0 };
+            }
+
+            // Normalize and return
+            return {
+                vx: totalVx / totalMag,
+                vy: totalVy / totalMag
+            };
+        }
+
+        function drawFieldLines() {
+            ctx.strokeStyle = LINE_COLOR;
+            ctx.lineWidth = LINE_WIDTH;
+            ctx.globalAlpha = 0.8; // Slightly more opaque lines
+
+            poles.forEach(pole => {
+                if (pole.type === 'N') {
+                    for (let i = 0; i < LINES_PER_POLE; i++) {
+                        const angle = (i / LINES_PER_POLE) * Math.PI * 2;
+                        const startRadius = POLE_RADIUS + 2;
+                        let currentX = pole.x + Math.cos(angle) * startRadius;
+                        let currentY = pole.y + Math.sin(angle) * startRadius;
+
+                        ctx.beginPath();
+                        ctx.moveTo(currentX, currentY);
+
+                        for (let step = 0; step < MAX_STEPS; step++) {
+                            // Exclude the source pole's influence right at the start point
+                            const field = calculateFieldVector(currentX, currentY, step < 2 ? pole.id : -1);
+
+                            if (field.vx === 0 && field.vy === 0) break;
+
+                            // Adaptive step size - move less when field is strong (near poles)? - Optional optimization
+                            // const currentStepSize = STEP_SIZE; // Keep it simple for now
+
+                            const nextX = currentX + field.vx * STEP_SIZE;
+                            const nextY = currentY + field.vy * STEP_SIZE;
+
+                            ctx.lineTo(nextX, nextY);
+
+                            currentX = nextX;
+                            currentY = nextY;
+
+                            // --- Termination Checks ---
+                            if (currentX < -STEP_SIZE || currentX > width + STEP_SIZE || currentY < -STEP_SIZE || currentY > height + STEP_SIZE) {
+                                break; // Off canvas
+                            }
+
+                            let terminated = false;
+                            for (const p of poles) {
+                                const dx = currentX - p.x;
+                                const dy = currentY - p.y;
+                                const distSq = dx * dx + dy * dy;
+
+                                if (distSq < POLE_INFLUENCE_RADIUS_SQ) {
+                                    if (p.type === 'S') {
+                                        ctx.lineTo(p.x, p.y); // Connect nicely
+                                        terminated = true;
+                                        break;
+                                    } else if (p.id !== pole.id) { // Reached another North Pole (not the source)
+                                        terminated = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (terminated) break;
+                        }
+                        ctx.stroke();
+                    }
+                }
+            });
+            ctx.globalAlpha = 1.0; // Reset alpha
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, width, height);
+
+            if (poles.length > 0) {
+                drawFieldLines();
+            }
+
+            // Draw poles on top
+            poles.forEach(drawPole);
+
+            // Set cursor based on hover state
+            canvas.style.cursor = isHoveringPole ? 'grab' : 'default';
+            if (isDragging) {
+                canvas.style.cursor = 'grabbing';
+            }
+        }
+
+        // --- Event Handling ---
+
+        function getMousePos(canvas, evt) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: evt.clientX - rect.left,
+                y: evt.clientY - rect.top
+            };
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            const mousePos = getMousePos(canvas, e);
+            isHoveringPole = false; // Reset hover state on click down
+
+            // Find if a pole was clicked (iterate backwards to select top ones first)
+            for (let i = poles.length - 1; i >= 0; i--) {
+                const pole = poles[i];
+                const dx = mousePos.x - pole.x;
+                const dy = mousePos.y - pole.y;
+                if (dx * dx + dy * dy < POLE_RADIUS * POLE_RADIUS) {
+                    isDragging = true;
+                    draggedPole = pole;
+                    dragOffsetX = dx;
+                    dragOffsetY = dy;
+                    canvas.style.cursor = 'grabbing'; // Change cursor immediately
+                    draw(); // Redraw to show potential dragging effect (like shadow)
+                    return; // Stop checking once a pole is found
+                }
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            const mousePos = getMousePos(canvas, e);
+            isHoveringPole = false; // Assume not hovering initially
+
+            if (isDragging && draggedPole) {
+                // Keep pole within canvas bounds (optional, but good UX)
+                let newX = mousePos.x - dragOffsetX;
+                let newY = mousePos.y - dragOffsetY;
+
+                newX = Math.max(POLE_RADIUS, Math.min(width - POLE_RADIUS, newX));
+                newY = Math.max(POLE_RADIUS, Math.min(height - POLE_RADIUS, newY));
+
+                draggedPole.x = newX;
+                draggedPole.y = newY;
+
+                draw(); // Redraw everything during drag
+            } else {
+                // Check for hovering if not dragging
+                for (const pole of poles) {
+                    const dx = mousePos.x - pole.x;
+                    const dy = mousePos.y - pole.y;
+                    if (dx * dx + dy * dy < POLE_RADIUS * POLE_RADIUS) {
+                        isHoveringPole = true;
+                        break; // Found a pole to hover over
+                    }
+                }
+                // Update cursor based on hover state if not dragging
+                canvas.style.cursor = isHoveringPole ? 'grab' : 'default';
+            }
+        });
+
+        // Use window mouseup in case mouse is released outside canvas
+        window.addEventListener('mouseup', (e) => {
+            if (isDragging) {
+                isDragging = false;
+                draggedPole = null;
+                // Check hover state again after dropping
+                const mousePos = getMousePos(canvas, e);
+                isHoveringPole = false;
+                for (const pole of poles) {
+                    const dx = mousePos.x - pole.x;
+                    const dy = mousePos.y - pole.y;
+                    if (dx * dx + dy * dy < POLE_RADIUS * POLE_RADIUS) {
+                        isHoveringPole = true;
+                        break;
+                    }
+                }
+                canvas.style.cursor = isHoveringPole ? 'grab' : 'default';
+                draw(); // Final redraw after drop
+            }
+        });
+
+        canvas.addEventListener('mouseleave', (e) => {
+            // If dragging stops because mouse left canvas, stop dragging
+            if (isDragging) {
+                isDragging = false;
+                draggedPole = null;
+                canvas.style.cursor = 'default';
+                draw(); // Redraw to remove dragging effects
+            }
+            isHoveringPole = false; // Cannot hover if mouse is outside
+            canvas.style.cursor = 'default';
+        });
+
+
+        // --- Button Listeners ---
+        document.getElementById('addNorth').addEventListener('click', () => addPole('N'));
+        document.getElementById('addSouth').addEventListener('click', () => addPole('S'));
+        document.getElementById('removeLast').addEventListener('click', removeLastPole);
+        document.getElementById('clearAll').addEventListener('click', clearAllPoles);
+
+        // --- Initial Setup ---
+        function initialize() {
+            poles = [
+                { id: poleIdCounter++, x: width * 0.3, y: height / 2, type: 'N' },
+                { id: poleIdCounter++, x: width * 0.7, y: height / 2, type: 'S' }
+            ];
+            draw();
+        }
+
+        initialize(); // Start with a default dipole
+
+    </script>
+
+</body>
+
+</html>
