@@ -1,18 +1,18 @@
 /* eslint-disable react-hooks/rules-of-hooks */
 import { ReactElement } from 'react'
 import {
-	TLBaseShape,
 	BaseBoxShapeUtil,
+	DefaultSpinner,
+	HTMLContainer,
+	stopEventPropagation,
+	SvgExportContext,
+	TLBaseShape,
+	TldrawUiIcon,
+	toDomPrecision,
 	useIsEditing,
 	useToasts,
 	useValue,
-	HTMLContainer,
-	toDomPrecision,
-	DefaultSpinner,
-	stopEventPropagation,
-	SvgExportContext,
 	Vec,
-	TldrawUiIcon,
 } from 'tldraw'
 
 export type PreviewShape = TLBaseShape<
@@ -31,7 +31,7 @@ export class PreviewShapeUtil extends BaseBoxShapeUtil<PreviewShape> {
 		return {
 			html: '',
 			w: (960 * 2) / 3,
-			h: (540 * 2) / 3,
+			h: (1280 * 2) / 3,
 		}
 	}
 
