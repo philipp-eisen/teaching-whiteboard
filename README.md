@@ -1,45 +1,24 @@
 # Explainimator
 
-Use this repo as a template to create Make Real style apps like
-[makereal.tldraw.com](https://makereal.tldraw.com). To get started:
+Teachers can now create explainer animations with AI, from sketches & vibes.
 
-1. Use the template and clone your new repo to your computer
-2. Run `npm install` to install dependencies
-3. Get an OpenAI API key from [platform.openai.com/api-keys](https://platform.openai.com/api-keys).
-4. Create a `.env.local` file that contains `NEXT_PUBLIC_OPENAI_API_KEY=your api key here`
-5. Run `npm run dev`
-6. Open [localhost:3000](http://localhost:3000) and make some stuff real!
+Turn your rough sketches into engaging, interactive animations for the classroom. Simply draw your idea, and our AI transforms it into a polished, educational animation that helps concepts come alive for students.
 
-## How it works
+Perfect for visual learners, complex topics, and adding dynamic elements to your lessons without the need for complex animation tools or technical expertise.
 
-Make Real is built with the [tldraw
-SDK](https://tldraw.dev/?utm_source=github&utm_medium=readme&utm_campaign=make-real), a very good
-React library for creating whiteboards and other infinite canvas experiences.
+# How to run
 
-To use it, first draw a mockup for a piece of UI. When you're ready, select the drawing, and press
-the Make Real button. We'll capture an image of your selection, and send it to
-[GPT](https://platform.openai.com/docs/guides/vision) along with instructions to turn it into a HTML
-file.
+1. Run `pnpm install` to install dependencies
+2. Create a `.env.local` file that contains `NEXT_PUBLIC_GOOGLE_API_KEY=your api key here`
+3. Run `pnpm dev`
+4. Open [localhost:3000](http://localhost:3000) and animate some experiments!
 
-We take the HTML response and add it to a tldraw [custom
-shape](https://tldraw.dev/docs/shapes#Custom-shapes). The custom shape shows the response in an
-iframe so that you can interact with it on the canvas. If you want to iterate on the response,
-annotate the iframe, select it all, and press 'Make Real' again.
+## How the AI works
 
-## To make changes
+Explainimator is built with the [tldraw SDK](https://tldraw.dev), a React library for creating whiteboards and other infinite canvas experiences.
 
-To change how Make Real works, start from the [`prompt.ts`](./app/prompt.ts) file. From there, you
-can change the prompt that gets sent to gpt-4.
+Explainimator uses multiple AI models to transform your sketches into interactive animations:
 
-You can edit the `makeReal` function in [`makeReal.ts`](./app/lib/makeReal.tsx) to change what
-happens when you hit the Make Real button.
+1. **Input Processing**: When you draw a sketch, Gemini 2.0 Flash analyzes the image and describes it
 
-If you'd like Make Real to create something other than HTML, you'll need to either update the
-[`PreviewShape`](./app/PreviewShape/PreviewShape.tsx) to display something different, or use one of
-tldraw's built-in shapes like image or text.
-
-## The dangerous API key input method
-
-For prototyping, we've also included the `RiskyButCoolAPIKeyInput`, similar to the one found on
-[makereal.tldraw.com](https://makereal.tldraw.com). Please use this as carefully and ethically as
-you can, as users should be reluctant to add API keys to public sites.
+2. **Animation Generation**: Gemini 2.5 Pro converts your sketch into interactive HTML/CSS/JS animations
