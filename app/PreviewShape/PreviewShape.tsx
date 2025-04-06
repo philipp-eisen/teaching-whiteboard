@@ -92,6 +92,7 @@ export class PreviewShapeUtil extends BaseBoxShapeUtil<PreviewShape> {
 							boxShadow: '0 4px 30px rgba(0, 0, 0, 0.1), inset 0 0 0 2px rgba(255, 255, 255, 0.2)',
 							overflow: 'hidden',
 							backgroundColor: 'var(--color-muted-2)',
+							pointerEvents: 'none',
 						}}
 					>
 						<Image
