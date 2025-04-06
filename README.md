@@ -1,4 +1,4 @@
-# Make Real
+# Explainimator
 
 Use this repo as a template to create Make Real style apps like
 [makereal.tldraw.com](https://makereal.tldraw.com). To get started:
