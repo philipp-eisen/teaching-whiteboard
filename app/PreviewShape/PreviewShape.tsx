@@ -324,24 +324,12 @@ export class PreviewShapeUtil extends BaseBoxShapeUtil<PreviewShape> {
 
         function resizeCanvas() {
             console.log('Resizing canvas...');
-            // Set canvas dimensions to match the entire document size
-            const newWidth = Math.max(
-                document.documentElement.scrollWidth,
-                document.documentElement.clientWidth,
-                document.body.scrollWidth
-            );
-            const newHeight = Math.max(
-                document.documentElement.scrollHeight,
-                document.documentElement.clientHeight,
-                document.body.scrollHeight
-            );
             
-            console.log('New dimensions:', { width: newWidth, height: newHeight });
+            // Set canvas dimensions to match the viewport
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
             
-            canvas.width = newWidth;
-            canvas.height = newHeight;
-            
-            // Position the canvas to cover everything
+            // Position the canvas to cover everything in the viewport
             canvas.style.position = 'fixed';
             canvas.style.top = '0';
             canvas.style.left = '0';
@@ -350,10 +338,9 @@ export class PreviewShapeUtil extends BaseBoxShapeUtil<PreviewShape> {
             canvas.style.zIndex = '1000';
             canvas.style.pointerEvents = 'none';
             
-            console.log('Canvas styles set:', {
-                position: canvas.style.position,
-                width: canvas.style.width,
-                height: canvas.style.height
+            console.log('Canvas dimensions set to viewport:', {
+                width: canvas.width,
+                height: canvas.height
             });
         }
 
@@ -413,12 +400,11 @@ export class PreviewShapeUtil extends BaseBoxShapeUtil<PreviewShape> {
         }
 
         function getPageCoordinates(event) {
-            // Get the canvas's bounding rectangle
-            const rect = canvas.getBoundingClientRect();
-            // Calculate coordinates relative to the canvas
+            // For fixed position canvas that covers the viewport,
+            // we just need the client coordinates
             return {
-                x: event.clientX - rect.left,
-                y: event.clientY - rect.top
+                x: event.clientX,
+                y: event.clientY
             };
         }
 
@@ -472,6 +458,19 @@ export class PreviewShapeUtil extends BaseBoxShapeUtil<PreviewShape> {
             // Make sure canvas is visible during capture
             canvas.style.display = 'block';
 
+            // Convert viewport coordinates to document coordinates for the arrow
+            const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
+            const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+            
+            // Store the arrow data with adjusted coordinates
+            const arrowData = {
+                fromX: startX + scrollX,
+                fromY: startY + scrollY,
+                toX: endX + scrollX,
+                toY: endY + scrollY,
+                message: userIssueMessage
+            };
+
             // Delay the screenshot capture to ensure the arrow is rendered
             setTimeout(async () => {
                 try {
@@ -493,7 +492,9 @@ export class PreviewShapeUtil extends BaseBoxShapeUtil<PreviewShape> {
                         action: 'fix-arrow-screenshot',
                         screenshot: imageData,
                         shapeid: "${shape.id}",
-                        issueMessage: userIssueMessage
+                        issueMessage: userIssueMessage,
+                        previousHtml: document.documentElement.outerHTML,
+                        arrowData: arrowData
                     }, "*");
 
                     console.log('Screenshot sent to parent');

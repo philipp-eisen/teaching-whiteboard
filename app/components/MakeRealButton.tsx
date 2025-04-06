@@ -10,10 +10,9 @@ export function MakeRealButton() {
 		const handleMessage = (event: MessageEvent) => {
 			console.log('handleMessage', event)
 			if (event.data.action === 'fix-arrow-screenshot' && event.data.shapeid) {
-				console.log('fix-arrow-screenshot', event.data.shapeid)
 				try {
 					console.log('makeRealFix', event.data.screenshot)
-					makeRealFix(editor, event.data.screenshot, '')
+					makeRealFix(editor, event.data.screenshot, event.data.previousHtml)
 				} catch (e) {
 					console.error(e)
 				}
