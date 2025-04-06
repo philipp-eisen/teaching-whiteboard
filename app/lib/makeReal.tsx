@@ -75,6 +75,27 @@ export async function makeReal(editor: Editor) {
 export async function makeRealFix(editor: Editor, dataUrl: string) {
 	const selectedShapes = editor.getSelectedShapes()
 	if (selectedShapes.length === 0) throw Error('First select something to make real.')
+	const { maxX, midY } = editor.getSelectionPageBounds()!
+	const newShapeId = createShapeId()
+	// Get a screenshot of the selected shapes
+	const bounds = editor.getSelectionPageBounds()
+
+	if (!bounds) throw Error('Could not get bounds of selection.')
+
+	editor.createShape<PreviewShape>({
+		id: newShapeId,
+		type: 'response',
+		x: maxX + 60, // to the right of the selection
+		y: midY - (540 * 2) / 3 / 2, // half the height of the preview's initial shape
+		props: {
+			html: '',
+			image: {
+				dataUrl: dataUrl,
+				width: bounds.width,
+				height: bounds.height,
+			},
+		},
+	})
 
 	const html = await getHtmlFromAi({
 		image: dataUrl,
@@ -88,14 +109,12 @@ export async function makeRealFix(editor: Editor, dataUrl: string) {
 		throw Error('Could not generate a design from those wireframes.')
 	}
 
-	const { maxX, midY } = editor.getSelectionPageBounds()!
-	const newShapeId = createShapeId()
 	editor.createShape<PreviewShape>({
 		id: newShapeId,
 		type: 'response',
 		x: maxX + 60, // to the right of the selection
 		y: midY - (540 * 2) / 3 / 2, // half the height of the preview's initial shape
-		props: { html: '' },
+		props: { html },
 	})
 
 	// Update the shape with the new props
