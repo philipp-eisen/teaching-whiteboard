@@ -79,6 +79,7 @@ export async function generateAnimationDescriptionFromScribble({
 		temperature: 0.0, // Lower temperature for more focused output
 		messages: [userMessage],
 		system: SYSTEM_PROMPT,
+		experimental_telemetry: { isEnabled: true },
 	})
 
 	console.log('Generated animation description from scribble:', result.text)

@@ -15,6 +15,9 @@ Some guidelines:
 - Import any dependencies from a cdn. 
 - Diagrams need to be interactive. 
 - Think about what component should be interactive. e.g.: variable that the user can change to see the affect.
+
+
+- DO NOT OVERTHINKG THE PROBLEM. JUST CREATE THE ANIMATION.
 `
 
 // This prompt is used when the user has not provided any previous designs
