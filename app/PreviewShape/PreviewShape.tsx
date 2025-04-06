@@ -8,12 +8,14 @@ import {
 	SvgExportContext,
 	TLBaseShape,
 	TldrawUiIcon,
+	TLShape,
 	toDomPrecision,
 	useIsEditing,
 	useToasts,
 	useValue,
 	Vec,
 } from 'tldraw'
+import Image from 'next/image'
 
 export type PreviewShape = TLBaseShape<
 	'response',
@@ -21,6 +23,11 @@ export type PreviewShape = TLBaseShape<
 		html: string
 		w: number
 		h: number
+		image: {
+			dataUrl: string
+			width: number
+			height: number
+		}
 	}
 >
 
@@ -32,6 +39,11 @@ export class PreviewShapeUtil extends BaseBoxShapeUtil<PreviewShape> {
 			html: '',
 			w: (960 * 2) / 3,
 			h: (1280 * 2) / 3,
+			image: {
+				dataUrl: '',
+				width: 0,
+				height: 0,
+			},
 		}
 	}
 
@@ -324,9 +336,15 @@ export class PreviewShapeUtil extends BaseBoxShapeUtil<PreviewShape> {
 							alignItems: 'center',
 							justifyContent: 'center',
 							border: '1px solid var(--color-muted-1)',
+							overflow: 'hidden',
 						}}
 					>
-						<DefaultSpinner />
+						<Image
+							src={shape.props.image.dataUrl}
+							alt="Selected shapes"
+							width={shape.props.image.width}
+							height={shape.props.image.height}
+						/>
 					</div>
 				)}
 				<div

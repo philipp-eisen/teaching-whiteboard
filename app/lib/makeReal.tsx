@@ -12,14 +12,6 @@ export async function makeReal(editor: Editor) {
 	// Create the preview shape
 	const { maxX, midY } = editor.getSelectionPageBounds()!
 	const newShapeId = createShapeId()
-	editor.createShape<PreviewShape>({
-		id: newShapeId,
-		type: 'response',
-		x: maxX + 60, // to the right of the selection
-		y: midY - (540 * 2) / 3 / 2, // half the height of the preview's initial shape
-		props: { html: '' },
-	})
-
 	// Get a screenshot of the selected shapes
 	const maxSize = 1000
 	const bounds = editor.getSelectionPageBounds()
@@ -31,6 +23,21 @@ export async function makeReal(editor: Editor) {
 		format: 'jpeg',
 	})
 	const dataUrl = await blobToBase64(blob!)
+
+	editor.createShape<PreviewShape>({
+		id: newShapeId,
+		type: 'response',
+		x: maxX + 60, // to the right of the selection
+		y: midY - (540 * 2) / 3 / 2, // half the height of the preview's initial shape
+		props: {
+			html: '',
+			image: {
+				dataUrl: dataUrl,
+				width: bounds.width,
+				height: bounds.height,
+			},
+		},
+	})
 
 	// Get any previous previews among the selected shapes
 	// We don't want to use previous previews for now
