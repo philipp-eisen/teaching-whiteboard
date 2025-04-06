@@ -22,5 +22,6 @@ export const USER_PROMPT =
 	'Here are the latest sketches for an educational simulation. Please create a fun, interactive, and accurate demonstration based on these, delivered as a single HTML file.'
 
 // This prompt is used when the user has provided previous designs
-export const USER_PROMPT_WITH_PREVIOUS_DESIGN =
-	"Here are the latest sketches and previous versions for an educational simulation. We've generated screenshots from the previous code using an 'HTML to screenshot' library, which might have inaccuracies. Use your expertise in educational technology and science to interpret annotations correctly, potentially differing from the screenshot visuals. Create an updated, fun, interactive, and accurate simulation based on all provided materials (previous work, new sketches, annotations). Reply with the complete simulation as a single HTML file."
+export const USER_FIX_PROMPT = `
+The user has provided a screenshot of the previous design. Please fix the inaccuracies in the screenshot based on the arrow that the user drew in the screenshot.
+`

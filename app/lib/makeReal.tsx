@@ -34,17 +34,12 @@ export async function makeReal(editor: Editor) {
 
 	// Get any previous previews among the selected shapes
 	// We don't want to use previous previews for now
-	const previousPreviews: PreviewShape[] = []
-	// selectedShapes.filter(
-	// 	(shape) => shape.type === 'response'
-	// ) as PreviewShape[]
 
 	// Send everything to OpenAI and get some HTML back
 	try {
 		const html = await getHtmlFromAi({
 			image: dataUrl,
 			text: getTextFromSelectedShapes(editor),
-			previousPreviews,
 			theme: editor.user.getUserPreferences().isDarkMode ? 'dark' : 'light',
 		})
 
@@ -68,4 +63,42 @@ export async function makeReal(editor: Editor) {
 		editor.deleteShape(newShapeId)
 		throw e
 	}
+}
+
+export async function makeRealFix(editor: Editor, dataUrl: string) {
+	const selectedShapes = editor.getSelectedShapes()
+	if (selectedShapes.length === 0) throw Error('First select something to make real.')
+
+	const html = await getHtmlFromAi({
+		image: dataUrl,
+		text: getTextFromSelectedShapes(editor),
+		theme: editor.user.getUserPreferences().isDarkMode ? 'dark' : 'light',
+		fix: true,
+	})
+
+	if (html.length < 100) {
+		console.warn(html)
+		throw Error('Could not generate a design from those wireframes.')
+	}
+
+	const { maxX, midY } = editor.getSelectionPageBounds()!
+	const newShapeId = createShapeId()
+	editor.createShape<PreviewShape>({
+		id: newShapeId,
+		type: 'response',
+		x: maxX + 60, // to the right of the selection
+		y: midY - (540 * 2) / 3 / 2, // half the height of the preview's initial shape
+		props: { html: '' },
+	})
+
+	// Update the shape with the new props
+	editor.updateShape<PreviewShape>({
+		id: newShapeId,
+		type: 'response',
+		props: {
+			html,
+		},
+	})
+
+	console.log(`Response: ${html}`)
 }

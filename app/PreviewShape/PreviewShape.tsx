@@ -14,6 +14,7 @@ import {
 	useValue,
 	Vec,
 } from 'tldraw'
+import { makeReal } from '../lib/makeReal'
 
 export type PreviewShape = TLBaseShape<
 	'response',
@@ -26,36 +27,9 @@ export type PreviewShape = TLBaseShape<
 
 // Global resolvers map to handle screenshot messages
 const screenshotResolvers = new Map<
-  string, 
-  { resolve: (element: ReactElement) => void, reject: () => void }
+	string,
+	{ resolve: (element: ReactElement) => void; reject: () => void }
 >()
-
-// Setup global message listener once
-if (typeof window !== 'undefined') {
-  window.addEventListener('message', (event) => {
-    console.log('Global message listener received:', event.data)
-    
-    // Handle regular screenshots
-    if (event.data.screenshot && event.data.shapeid) {
-      const resolver = screenshotResolvers.get(event.data.shapeid)
-      if (resolver) {
-        console.log('Resolving screenshot for shape:', event.data.shapeid)
-        resolver.resolve(<PreviewImage href={event.data.screenshot} shape={{ id: event.data.shapeid, props: { w: 0, h: 0 } } as PreviewShape} />)
-        screenshotResolvers.delete(event.data.shapeid)
-      }
-    }
-    
-    // Handle fix-arrow screenshots
-    if (event.data.action === 'fix-arrow-screenshot' && event.data.shapeid) {
-      const resolver = screenshotResolvers.get(event.data.shapeid)
-      if (resolver) {
-        console.log('Resolving fix-arrow screenshot for shape:', event.data.shapeid)
-        resolver.resolve(<PreviewImage href={event.data.screenshot} shape={{ id: event.data.shapeid, props: { w: 0, h: 0 } } as PreviewShape} />)
-        screenshotResolvers.delete(event.data.shapeid)
-      }
-    }
-  })
-}
 
 export class PreviewShapeUtil extends BaseBoxShapeUtil<PreviewShape> {
 	static override type = 'response' as const
@@ -429,16 +403,17 @@ export class PreviewShapeUtil extends BaseBoxShapeUtil<PreviewShape> {
 				return
 			}
 
+			console.log('toSvg', shape.id)
 			// Store the resolver in the global map
 			screenshotResolvers.set(shape.id, { resolve, reject })
-			
+
 			// Set a longer timeout (30 seconds) to allow time for user interaction
 			const timeOut = setTimeout(() => {
 				console.log('Screenshot timeout for shape:', shape.id)
 				screenshotResolvers.delete(shape.id)
 				reject()
 			}, 30000) // 30 second timeout
-			
+
 			// Request a new screenshot
 			const firstLevelIframe = document.getElementById(`iframe-1-${shape.id}`) as HTMLIFrameElement
 			if (firstLevelIframe) {

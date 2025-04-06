@@ -1,10 +1,30 @@
+import { useCallback, useEffect } from 'react'
 import { useEditor, useToasts } from 'tldraw'
-import { useCallback } from 'react'
-import { makeReal } from '../lib/makeReal'
+import { makeReal, makeRealFix } from '../lib/makeReal'
 
 export function MakeRealButton() {
 	const editor = useEditor()
 	const { addToast } = useToasts()
+
+	useEffect(() => {
+		const handleMessage = (event: MessageEvent) => {
+			console.log('handleMessage', event)
+			if (event.data.action === 'fix-arrow-screenshot' && event.data.shapeid) {
+				console.log('fix-arrow-screenshot', event.data.shapeid)
+				try {
+					console.log('makeRealFix', event.data.screenshot)
+					makeRealFix(editor, event.data.screenshot)
+				} catch (e) {
+					console.error(e)
+				}
+			}
+		}
+
+		window.addEventListener('message', handleMessage)
+		return () => {
+			window.removeEventListener('message', handleMessage)
+		}
+	}, [editor])
 
 	const handleClick = useCallback(async () => {
 		try {
