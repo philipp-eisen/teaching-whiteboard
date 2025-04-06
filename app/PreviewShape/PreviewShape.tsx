@@ -16,6 +16,7 @@ import {
 	Vec,
 } from 'tldraw'
 import Image from 'next/image'
+import React from 'react'
 
 export type PreviewShape = TLBaseShape<
 	'response',
@@ -316,8 +317,27 @@ export class PreviewShapeUtil extends BaseBoxShapeUtil<PreviewShape> {
 </body>`
 		)
 
+		// Define the keyframes animations
+		const animations = `
+			@keyframes pulseBlur {
+				0% { backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
+				50% { backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+				100% { backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
+			}
+
+			@keyframes cycleColor {
+				0%   { background-color: hsla(0, 75%, 80%, 0.15); }
+				25%  { background-color: hsla(90, 75%, 80%, 0.2); }
+				50%  { background-color: hsla(180, 75%, 80%, 0.15); }
+				75%  { background-color: hsla(270, 75%, 80%, 0.2); }
+				100% { background-color: hsla(360, 75%, 80%, 0.15); }
+			}
+		`
+
 		return (
 			<HTMLContainer className="tl-embed-container" id={shape.id}>
+				{/* Inject the keyframes styles */}
+				<style>{animations}</style>
 				{htmlToUse ? (
 					<iframe
 						id={`iframe-1-${shape.id}`}
@@ -337,12 +357,15 @@ export class PreviewShapeUtil extends BaseBoxShapeUtil<PreviewShape> {
 						style={{
 							width: '100%',
 							height: '100%',
-							backgroundColor: 'var(--color-muted-2)',
+							position: 'relative',
 							display: 'flex',
 							alignItems: 'center',
 							justifyContent: 'center',
-							border: '1px solid var(--color-muted-1)',
+							border: '1px solid rgba(255, 255, 255, 0.2)',
+							borderRadius: 'var(--radius-2)',
+							boxShadow: '0 4px 30px rgba(0, 0, 0, 0.1)',
 							overflow: 'hidden',
+							backgroundColor: 'var(--color-muted-2)',
 						}}
 					>
 						<Image
@@ -350,6 +373,30 @@ export class PreviewShapeUtil extends BaseBoxShapeUtil<PreviewShape> {
 							alt="Selected shapes"
 							width={shape.props.image.width}
 							height={shape.props.image.height}
+							style={{
+								display: 'block',
+								maxWidth: '100%',
+								maxHeight: '100%',
+								objectFit: 'contain',
+							}}
+						/>
+						{/* Overlay for Glass Effect */}
+						<div
+							style={{
+								position: 'absolute',
+								top: 0,
+								left: 0,
+								right: 0,
+								bottom: 0,
+								// Initial background color (will be overridden by animation)
+								backgroundColor: 'hsla(0, 75%, 80%, 0.15)',
+								// Initial backdrop filter (will be overridden by animation)
+								backdropFilter: 'blur(2px)',
+								WebkitBackdropFilter: 'blur(2px)',
+								pointerEvents: 'none',
+								// Apply both animations, comma-separated
+								animation: 'pulseBlur 3s infinite ease-in-out, cycleColor 10s infinite linear',
+							}}
 						/>
 					</div>
 				)}
