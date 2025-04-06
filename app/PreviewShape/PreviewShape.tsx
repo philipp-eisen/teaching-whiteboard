@@ -361,9 +361,14 @@ export class PreviewShapeUtil extends BaseBoxShapeUtil<PreviewShape> {
 							display: 'flex',
 							alignItems: 'center',
 							justifyContent: 'center',
-							border: '1px solid rgba(255, 255, 255, 0.2)',
-							borderRadius: 'var(--radius-2)',
-							boxShadow: '0 4px 30px rgba(0, 0, 0, 0.1)',
+							// Even Thicker, glass-like border
+							borderWidth: '6px',
+							borderStyle: 'solid',
+							borderColor: 'rgba(255, 255, 255, 0.4)', // More opaque border color
+							// Increased border radius
+							borderRadius: '24px',
+							// Outer shadow + thicker inner shadow for glass edge effect
+							boxShadow: '0 4px 30px rgba(0, 0, 0, 0.1), inset 0 0 0 2px rgba(255, 255, 255, 0.2)',
 							overflow: 'hidden',
 							backgroundColor: 'var(--color-muted-2)',
 						}}
