@@ -2,6 +2,14 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 
+// Register telemetry on the server-side only
+import { register } from './lib/telemetry'
+
+// Ensure the register function is only called once during initialization on the server
+if (typeof window === 'undefined') {
+	register()
+}
+
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {

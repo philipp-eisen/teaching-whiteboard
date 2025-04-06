@@ -106,7 +106,7 @@ export async function getHtmlFromAi({
 	}
 
 	const params = {
-		model: claude37Sonnet,
+		model: gemini25,
 		temperature: 0,
 		system: SYSTEM_PROMPT,
 		headers: {
@@ -119,11 +119,15 @@ export async function getHtmlFromAi({
 	if (generationType === 'text') {
 		const result = await generateText({
 			...params,
+			experimental_telemetry: { isEnabled: true },
 		})
+		console.log(result.reasoningDetails)
+		console.log(result.text)
 		return removeHtmlMarkdown(result.text)
 	} else {
 		const result = await generateObject({
 			...params,
+			experimental_telemetry: { isEnabled: true },
 			schema: z.object({
 				html: z.string(),
 			}),
