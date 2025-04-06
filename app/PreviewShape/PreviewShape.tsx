@@ -53,7 +53,6 @@ export class PreviewShapeUtil extends BaseBoxShapeUtil<PreviewShape> {
 			},
 		}
 	}
-
 	override canEdit = () => true
 	override isAspectRatioLocked = () => false
 	override canResize = () => true
@@ -71,6 +70,67 @@ export class PreviewShapeUtil extends BaseBoxShapeUtil<PreviewShape> {
 			},
 			[this.editor]
 		)
+
+		const spinner = () => {
+			if (!!shape.props.image) {
+				return (
+					<div
+						style={{
+							width: '100%',
+							height: '100%',
+							position: 'relative',
+							display: 'flex',
+							alignItems: 'center',
+							justifyContent: 'center',
+							// Even Thicker, glass-like border
+							borderWidth: '6px',
+							borderStyle: 'solid',
+							borderColor: 'rgba(255, 255, 255, 0.4)', // More opaque border color
+							// Increased border radius
+							borderRadius: '24px',
+							// Outer shadow + thicker inner shadow for glass edge effect
+							boxShadow: '0 4px 30px rgba(0, 0, 0, 0.1), inset 0 0 0 2px rgba(255, 255, 255, 0.2)',
+							overflow: 'hidden',
+							backgroundColor: 'var(--color-muted-2)',
+							pointerEvents: 'none',
+						}}
+					>
+						<Image
+							src={shape.props.image.dataUrl}
+							alt="Selected shapes"
+							width={shape.props.image.width}
+							height={shape.props.image.height}
+							style={{
+								display: 'block',
+								maxWidth: '100%',
+								maxHeight: '100%',
+								objectFit: 'contain',
+							}}
+						/>
+						{/* Overlay for Glass Effect */}
+						<div
+							style={{
+								position: 'absolute',
+								top: 0,
+								left: 0,
+								right: 0,
+								bottom: 0,
+								// Initial background color (will be overridden by animation)
+								backgroundColor: 'hsla(0, 75%, 80%, 0.15)',
+								// Initial backdrop filter (will be overridden by animation)
+								backdropFilter: 'blur(2px)',
+								WebkitBackdropFilter: 'blur(2px)',
+								pointerEvents: 'none',
+								// Apply both animations, comma-separated
+								animation: 'pulseBlur 3s infinite ease-in-out, cycleColor 10s infinite linear',
+							}}
+						/>
+					</div>
+				)
+			}
+
+			return <DefaultSpinner />
+		}
 
 		// Kind of a hack—we're preventing users from pinching-zooming into the iframe
 		const htmlToUse = shape.props.html.replace(
@@ -513,52 +573,7 @@ export class PreviewShapeUtil extends BaseBoxShapeUtil<PreviewShape> {
 						}}
 					/>
 				) : (
-					<div
-						style={{
-							width: '100%',
-							height: '100%',
-							position: 'relative',
-							display: 'flex',
-							alignItems: 'center',
-							justifyContent: 'center',
-							border: '1px solid rgba(255, 255, 255, 0.2)',
-							borderRadius: 'var(--radius-2)',
-							boxShadow: '0 4px 30px rgba(0, 0, 0, 0.1)',
-							overflow: 'hidden',
-							backgroundColor: 'var(--color-muted-2)',
-						}}
-					>
-						<Image
-							src={shape.props.image.dataUrl}
-							alt="Selected shapes"
-							width={shape.props.image.width}
-							height={shape.props.image.height}
-							style={{
-								display: 'block',
-								maxWidth: '100%',
-								maxHeight: '100%',
-								objectFit: 'contain',
-							}}
-						/>
-						{/* Overlay for Glass Effect */}
-						<div
-							style={{
-								position: 'absolute',
-								top: 0,
-								left: 0,
-								right: 0,
-								bottom: 0,
-								// Initial background color (will be overridden by animation)
-								backgroundColor: 'hsla(0, 75%, 80%, 0.15)',
-								// Initial backdrop filter (will be overridden by animation)
-								backdropFilter: 'blur(2px)',
-								WebkitBackdropFilter: 'blur(2px)',
-								pointerEvents: 'none',
-								// Apply both animations, comma-separated
-								animation: 'pulseBlur 3s infinite ease-in-out, cycleColor 10s infinite linear',
-							}}
-						/>
-					</div>
+					spinner()
 				)}
 				<div
 					style={{
