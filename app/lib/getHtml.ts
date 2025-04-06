@@ -30,12 +30,14 @@ export async function getHtmlFromAi({
 	theme = 'light',
 	generationType = 'text',
 	fix = false,
+	previousHtml,
 }: {
 	image: string
 	text: string
 	theme?: string
 	generationType?: 'object' | 'text'
 	fix?: boolean
+	previousHtml?: string
 }) {
 	const userContent: UserContent = []
 
@@ -50,6 +52,13 @@ export async function getHtmlFromAi({
 		type: 'image',
 		image: image,
 	})
+
+	if (previousHtml) {
+		userContent.push({
+			type: 'text',
+			text: `Here's the previous code that implements the previous design that should be fixed:\n\n${previousHtml}`,
+		})
+	}
 
 	// Add the strings of text
 	if (text) {

@@ -118,6 +118,63 @@ export class PreviewShapeUtil extends BaseBoxShapeUtil<PreviewShape> {
         .fix-button.active {
             background: #dc3545;
         }
+        /* Custom modal styles */
+        .fix-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            display: none;
+        }
+        .fix-modal {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            width: 80%;
+            max-width: 500px;
+        }
+        .fix-modal h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .fix-modal textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 10px 0;
+            height: 100px;
+            resize: vertical;
+        }
+        .fix-modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .fix-modal-buttons button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .fix-modal-cancel {
+            background: #f2f2f2;
+            color: #333;
+        }
+        .fix-modal-submit {
+            background: #007bff;
+            color: white;
+        }
+        .fix-modal-submit:hover {
+            background: #0056b3;
+        }
     </style>
 			<script>
         const canvas = document.getElementById('overlayCanvas');
@@ -132,18 +189,77 @@ export class PreviewShapeUtil extends BaseBoxShapeUtil<PreviewShape> {
         fixButton.className = 'fix-button';
         document.body.appendChild(fixButton);
 
+        // For storing user's issue description
+        let userIssueMessage = '';
+        
+        // Create modal elements
+        const modalOverlay = document.createElement('div');
+        modalOverlay.className = 'fix-modal-overlay';
+        
+        const modalContent = document.createElement('div');
+        modalContent.className = 'fix-modal';
+        
+        modalContent.innerHTML = 
+            '<h3>Describe the Issue</h3>' +
+            '<p>Please describe the issue that needs fixing:</p>' +
+            '<textarea id="issue-description" placeholder="Enter issue description here..."></textarea>' +
+            '<div class="fix-modal-buttons">' +
+                '<button class="fix-modal-cancel">Cancel</button>' +
+                '<button class="fix-modal-submit">OK</button>' +
+            '</div>';
+        
+        modalOverlay.appendChild(modalContent);
+        document.body.appendChild(modalOverlay);
+        
+        // Get modal elements
+        const submitBtn = modalContent.querySelector('.fix-modal-submit');
+        const cancelBtn = modalContent.querySelector('.fix-modal-cancel');
+        const textarea = modalContent.querySelector('#issue-description');
+
         fixButton.addEventListener('click', () => {
-            isFixMode = !isFixMode;
-            canvas.style.display = isFixMode ? 'block' : 'none';
-            fixButton.classList.toggle('active');
-            fixButton.textContent = isFixMode ? 'Cancel Fix' : 'Fix';
-            
             if (!isFixMode) {
+                // Show modal instead of browser prompt
+                modalOverlay.style.display = 'flex';
+                textarea.value = ''; // Clear previous input
+                textarea.focus();
+            } else {
+                // Cancel fix mode
+                isFixMode = false;
+                canvas.style.display = 'none';
+                fixButton.classList.remove('active');
+                fixButton.textContent = 'Fix';
+                userIssueMessage = '';
+                
                 // Clear any existing arrow
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
             }
-            
-            console.log('Fix mode:', isFixMode);
+        });
+        
+        // Modal submit button
+        submitBtn.addEventListener('click', () => {
+            userIssueMessage = textarea.value.trim();
+            if (userIssueMessage) {
+                modalOverlay.style.display = 'none';
+                isFixMode = true;
+                canvas.style.display = 'block';
+                fixButton.classList.add('active');
+                fixButton.textContent = 'Cancel Fix';
+                console.log('Fix mode activated with message:', userIssueMessage);
+            } else {
+                alert('Please enter a description of the issue');
+            }
+        });
+        
+        // Modal cancel button
+        cancelBtn.addEventListener('click', () => {
+            modalOverlay.style.display = 'none';
+        });
+        
+        // Close modal when clicking outside
+        modalOverlay.addEventListener('click', (e) => {
+            if (e.target === modalOverlay) {
+                modalOverlay.style.display = 'none';
+            }
         });
 
         function resizeCanvas() {
@@ -206,6 +322,34 @@ export class PreviewShapeUtil extends BaseBoxShapeUtil<PreviewShape> {
             context.lineTo(tox - headlen * Math.cos(angle + Math.PI / 6), toy - headlen * Math.sin(angle + Math.PI / 6));
             context.closePath();
             context.fill();
+            
+            // Draw issue message near arrow tip if available
+            if (userIssueMessage) {
+                context.font = '14px Arial';
+                context.fillStyle = 'black';
+                context.strokeStyle = 'white';
+                context.lineWidth = 3;
+                
+                // Position the text near the arrow tip
+                const textX = tox + 15;
+                const textY = toy;
+                
+                // Create background for text
+                const metrics = context.measureText(userIssueMessage);
+                const textHeight = 18; // Approximate height of the text
+                
+                context.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                context.fillRect(
+                    textX - 5, 
+                    textY - textHeight + 5, 
+                    metrics.width + 10, 
+                    textHeight + 10
+                );
+                
+                // Draw the text
+                context.fillStyle = 'black';
+                context.fillText(userIssueMessage, textX, textY);
+            }
         }
 
         function getPageCoordinates(event) {
@@ -265,40 +409,56 @@ export class PreviewShapeUtil extends BaseBoxShapeUtil<PreviewShape> {
             // Draw final arrow
             drawArrow(ctx, startX, startY, endX, endY, 4, 'red');
 
-            // Capture screenshot with arrow
-            try {
-                console.log('Capturing screenshot with arrow...');
-                const capturedCanvas = await html2canvas(document.documentElement, {
-                    useCORS: true,
-                    scrollX: -window.scrollX,
-                    scrollY: -window.scrollY,
-                    windowWidth: document.documentElement.scrollWidth,
-                    windowHeight: document.documentElement.scrollHeight,
-                    width: document.documentElement.scrollWidth,
-                    height: document.documentElement.scrollHeight,
-                    logging: true
-                });
+            // Make sure canvas is visible during capture
+            canvas.style.display = 'block';
 
-                const imageData = capturedCanvas.toDataURL('image/png');
-                window.parent.postMessage({
-                    action: 'fix-arrow-screenshot',
-                    screenshot: imageData,
-                    shapeid: "${shape.id}"
-                }, "*");
+            // Delay the screenshot capture to ensure the arrow is rendered
+            setTimeout(async () => {
+                try {
+                    console.log('Capturing screenshot with arrow...');
+                    
+                    const capturedCanvas = await html2canvas(document.documentElement, {
+                        useCORS: true,
+                        allowTaint: true,
+                        ignoreElements: (element) => {
+                            // Ignore the fix button itself
+                            return element === fixButton;
+                        },
+                        backgroundColor: null,
+                        logging: true
+                    });
 
-                console.log('Screenshot sent to parent');
-                
-                // Reset fix mode
-                isFixMode = false;
-                canvas.style.display = 'none';
-                fixButton.classList.remove('active');
-                fixButton.textContent = 'Fix';
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                
-            } catch (error) {
-                console.error('Screenshot error:', error);
-                alert('Error capturing screenshot');
-            }
+                    const imageData = capturedCanvas.toDataURL('image/png');
+                    window.parent.postMessage({
+                        action: 'fix-arrow-screenshot',
+                        screenshot: imageData,
+                        shapeid: "${shape.id}",
+                        issueMessage: userIssueMessage
+                    }, "*");
+
+                    console.log('Screenshot sent to parent');
+                    
+                    // Only reset fix mode AFTER the screenshot is captured and sent
+                    setTimeout(() => {
+                        isFixMode = false;
+                        canvas.style.display = 'none';
+                        fixButton.classList.remove('active');
+                        fixButton.textContent = 'Fix';
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    }, 100); // Small delay to ensure message is sent
+
+                } catch (error) {
+                    console.error('Screenshot error:', error);
+                    alert('Error capturing screenshot');
+                    
+                    // Reset fix mode even if there's an error
+                    isFixMode = false;
+                    canvas.style.display = 'none';
+                    fixButton.classList.remove('active');
+                    fixButton.textContent = 'Fix';
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+            }, 50); // Add a small delay before capturing to ensure arrow is rendered
         });
 
         // --- Initialization ---

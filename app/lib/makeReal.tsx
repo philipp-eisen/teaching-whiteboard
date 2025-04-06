@@ -72,7 +72,7 @@ export async function makeReal(editor: Editor) {
 	}
 }
 
-export async function makeRealFix(editor: Editor, dataUrl: string) {
+export async function makeRealFix(editor: Editor, dataUrl: string, previousHtml: string) {
 	const selectedShapes = editor.getSelectedShapes()
 	if (selectedShapes.length === 0) throw Error('First select something to make real.')
 	const { maxX, midY } = editor.getSelectionPageBounds()!
@@ -102,6 +102,7 @@ export async function makeRealFix(editor: Editor, dataUrl: string) {
 		text: getTextFromSelectedShapes(editor),
 		theme: editor.user.getUserPreferences().isDarkMode ? 'dark' : 'light',
 		fix: true,
+		previousHtml,
 	})
 
 	if (html.length < 100) {

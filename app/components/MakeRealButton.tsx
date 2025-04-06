@@ -13,7 +13,7 @@ export function MakeRealButton() {
 				console.log('fix-arrow-screenshot', event.data.shapeid)
 				try {
 					console.log('makeRealFix', event.data.screenshot)
-					makeRealFix(editor, event.data.screenshot)
+					makeRealFix(editor, event.data.screenshot, '')
 				} catch (e) {
 					console.error(e)
 				}
