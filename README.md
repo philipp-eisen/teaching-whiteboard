@@ -9,7 +9,7 @@ Perfect for visual learners, complex topics, and adding dynamic elements to your
 # How to run
 
 1. Run `pnpm install` to install dependencies
-2. Create a `.env.local` file that contains `NEXT_PUBLIC_GOOGLE_API_KEY=your api key here`
+2. Change the `.env.local` file to your own Google GEMINI api key `NEXT_PUBLIC_GOOGLE_API_KEY=KEY HERE`
 3. Run `pnpm dev`
 4. Open [localhost:3000](http://localhost:3000) and animate some experiments!
 
